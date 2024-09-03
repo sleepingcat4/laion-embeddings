@@ -14,11 +14,12 @@ def create_embeddings(input_text, server_url='http://127.0.0.1:8080/embed'):
         return embedding[0]
     raise ValueError("Unexpected API response format")
 
-def process_parquet_file(input_file, output_file, process_all, checkpoint_interval, checkpoint_folder, wiki_language):
+def process_parquet_file(input_file, output_file, process_all, checkpoint_interval, checkpoint_folder, wiki_language, use_checkpoints):
     table = pq.read_table(input_file)
     rows_to_process = min(table.num_rows, 50) if not process_all else table.num_rows
     
-    os.makedirs(checkpoint_folder, exist_ok=True)
+    if use_checkpoints:
+        os.makedirs(checkpoint_folder, exist_ok=True)
     
     all_embeddings = []
     all_version_control = []
@@ -35,7 +36,7 @@ def process_parquet_file(input_file, output_file, process_all, checkpoint_interv
         
         print(f"Processing {i + 1}th row")
 
-        if (i + 1) % checkpoint_interval == 0:
+        if use_checkpoints and (i + 1) % checkpoint_interval == 0:
             checkpoint_table = pa.Table.from_pydict({
                 'Wiki Language': pa.array(all_wiki_language),
                 'Embeddings': pa.array(all_embeddings),
@@ -57,11 +58,13 @@ def process_parquet_file(input_file, output_file, process_all, checkpoint_interv
         pq.write_table(final_table, output_file)
     else:
         combined_tables = []
-        for file in sorted(os.listdir(checkpoint_folder)):
-            if file.endswith(".parquet"):
-                combined_tables.append(pq.read_table(os.path.join(checkpoint_folder, file)))
-        combined_table = pa.concat_tables(combined_tables)
-        pq.write_table(combined_table, output_file)
+        if use_checkpoints:
+            for file in sorted(os.listdir(checkpoint_folder)):
+                if file.endswith(".parquet"):
+                    combined_tables.append(pq.read_table(os.path.join(checkpoint_folder, file)))
+        if combined_tables:
+            combined_table = pa.concat_tables(combined_tables)
+            pq.write_table(combined_table, output_file)
 
     print(f"Final embeddings saved to {output_file}")
 
@@ -87,13 +90,14 @@ if __name__ == "__main__":
     wiki_language = input("Enter the Wiki Language (e.g., enwiki, dewiki): ").strip()
     
     process_all = input("Do you want to process the entire file? (yes/no): ").strip().lower() == 'yes'
-    checkpoint_interval = int(input("Please specify the checkpoint interval (number of rows): ").strip())
-    checkpoint_folder = input("Please specify the checkpoint folder name: ").strip()
+    use_checkpoints = input("Do you want to use checkpoints? (yes/no): ").strip().lower() == 'yes'
+    checkpoint_interval = int(input("Please specify the checkpoint interval (number of rows): ").strip()) if use_checkpoints else None
+    checkpoint_folder = input("Please specify the checkpoint folder name: ").strip() if use_checkpoints else None
     
     # Start timing
     start_time = time.time()
     
-    process_parquet_file(input_file, output_file, process_all, checkpoint_interval, checkpoint_folder, wiki_language)
+    process_parquet_file(input_file, output_file, process_all, checkpoint_interval, checkpoint_folder, wiki_language, use_checkpoints)
     
     # End timing and print elapsed time
     end_time = time.time()
