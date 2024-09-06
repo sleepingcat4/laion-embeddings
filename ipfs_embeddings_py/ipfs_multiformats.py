@@ -2,7 +2,7 @@ import hashlib
 from multiformats import CID, multihash
 
 class ipfs_multiformats_py:
-    def __init__(self): 
+    def __init__(self, resources, metadata): 
         self.multihash = multihash
         return None
     
