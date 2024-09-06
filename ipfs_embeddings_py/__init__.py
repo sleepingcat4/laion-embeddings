@@ -1,0 +1,1 @@
+from .ipfs_embeddings import ipfs_embeddings_py
