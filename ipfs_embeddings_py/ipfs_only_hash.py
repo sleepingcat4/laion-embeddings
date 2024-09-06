@@ -1,3 +1,5 @@
+import os
+import subprocess
 
 class ipfs_only_hash_py:
     def __init__(self):
