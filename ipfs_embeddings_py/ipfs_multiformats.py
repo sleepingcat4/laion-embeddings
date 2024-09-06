@@ -1,5 +1,4 @@
 import hashlib
-from multiformats import CID, multihash
 
 class ipfs_multiformats_py:
     def __init__(self): 
