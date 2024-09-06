@@ -9,4 +9,3 @@ ipfs_embeddings_py.egg-info/PKG-INFO
 ipfs_embeddings_py.egg-info/SOURCES.txt
 ipfs_embeddings_py.egg-info/dependency_links.txt
 ipfs_embeddings_py.egg-info/top_level.txt
-test/test.py

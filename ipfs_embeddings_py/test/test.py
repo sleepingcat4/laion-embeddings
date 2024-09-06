@@ -1,12 +1,13 @@
-from ipfs_embeddings_py import ipfs_embeddings_py
+
 from datasets import load_dataset
+import ipfs_embeddings_py.ipfs_embeddings as ipfs_embeddings
 
 class test_ipfs_embeddings:
     def __init__(self):
         resources = "resources"
         metadata = "metadata"
         self.dataset = {}
-        self.ipfs_embeddings = ipfs_embeddings_py(resources, metadata)
+        self.ipfs_embeddings = ipfs_embeddings(resources, metadata)
         return None
     
     def test(self):
