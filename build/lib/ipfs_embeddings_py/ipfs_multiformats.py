@@ -25,6 +25,7 @@ class ipfs_multiformats_py:
         mh = self.get_multihash_sha256(file_content_hash)
         cid = CID('base32', 'raw', mh)
         return str(cid)
+    
 
 if __name__ == '__main__':
     ipfs_multiformats = ipfs_multiformats_py()
