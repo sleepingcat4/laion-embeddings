@@ -1,7 +1,9 @@
 import hashlib
+from multiformats import CID, multihash
 
 class ipfs_multiformats_py:
     def __init__(self): 
+        self.multihash = multihash
         return None
     
     # Step 1: Hash the file content with SHA-256
@@ -14,7 +16,7 @@ class ipfs_multiformats_py:
 
     # Step 2: Wrap the hash in Multihash format
     def get_multihash_sha256(self, file_content_hash):
-        mh = multihash.wrap(file_content_hash, 'sha2-256')
+        mh = self.multihash.wrap(file_content_hash, 'sha2-256')
         return mh
 
     # Step 3: Generate CID from Multihash (CIDv1)
