@@ -53,3 +53,8 @@ class ipfs_embeddings_py:
         self.add_tei_https_endpoint("BAAI/bge-m3", "62.146.169.111:8080/embed",1)
         self.add_tei_https_endpoint("BAAI/bge-m3", "62.146.168.111:8081/embed",1)
         print("test")
+
+if __name__ == '__main__':
+    ipfs_embeddings = ipfs_embeddings_py()
+    ipfs_embeddings.test()
+    print("test")
