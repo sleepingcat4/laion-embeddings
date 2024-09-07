@@ -14,6 +14,8 @@ class ipfs_embeddings_py:
         self.cid_index = {}
         self.knn_index = {}
         self.endpoint_status = {}
+        self.add_tei_https_endpoint = self.add_tei_https_endpoint.bind(self)
+        self.rm_tei_https_endpoint = self.rm_tei_https_endpoint.bind(self)
         return None
     
     def load_index(self, index):
