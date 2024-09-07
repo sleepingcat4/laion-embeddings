@@ -1,12 +1,12 @@
-from ipfs_multiformats import *
-from ipfs_only_hash import *
+from .ipfs_multiformats import *
+from .ipfs_only_hash import *
 import subprocess
 import os
 
 class ipfs_embeddings_py:
     def __init__(self, resources, metedata):
-        self.multiformats = ipfs_multiformats_py()
-        self.ipfs_only_hash = ipfs_only_hash_py()
+        self.multiformats = ipfs_multiformats_py(resources, metedata)
+        self.ipfs_only_hash = ipfs_only_hash_py(resources, metedata)
         self.tei_https_endpoints = {}
         self.libp2p_endpoints = {}
         self.cid_queue = iter([])
