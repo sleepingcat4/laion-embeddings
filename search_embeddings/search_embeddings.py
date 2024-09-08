@@ -106,7 +106,7 @@ class search_embeddings:
         else:        
             client.create_collection(
                 collection_name=collection_name,
-                vectors_config=VectorParams(size=100, distance=Distance.COSINE),
+                vectors_config=VectorParams(size=embedding_size, distance=Distance.COSINE),
             )
 
         # Chunk size for generating points
