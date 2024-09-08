@@ -31,11 +31,14 @@ class search_embeddings:
             
         return found
 
-
     def start_qdrant(self):
+        start_qdrant_cmd = "docker run -d --name qdrant -p 6333:6333 -v /tmp/qdrant:/qdrant/data qdrant/qdrant:latest"
+        os.system(start_qdrant_cmd)
         return None
     
     def stop_qdrant(self):
+        kill_qdrant_cmd = "docker stop qdrant"
+        os.system(kill_qdrant_cmd)
         return None
     
     def load_qdrant(self):
@@ -64,8 +67,8 @@ if __name__ == '__main__':
     search_query = "hello world"
     search_embeddings = search_embeddings(resources, metadata)
     search_embeddings.init(dataset, faiss_index)
-    search_embeddings.stop_qdrant()
-    search_embeddings.start_qdrant()
+    # search_embeddings.stop_qdrant()
+    # search_embeddings.start_qdrant()
     search_embeddings.load_qdrant()
     embedding_results = search_embeddings.generate_embeddings(search_query, "BAAI/bge-m3")
     embeddings_search = search_embeddings.search_embeddings(embedding_results)
