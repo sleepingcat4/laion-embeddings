@@ -17,18 +17,19 @@ class search_embeddings:
         self.knn_index = self.datasets.load_dataset(knn_index)
         self.dataset = self.datasets.load_dataset(dataset)
 
-        knn_columns = self.knn_index.column_names
-        dataset_columns = self.dataset.column_names
+        knn_columns = self.knn_index.column_names[list(self.knn_index.column_names.keys())[0]]
+        dataset_columns = self.dataset.column_names[list(self.dataset.column_names.keys())[0]]
         # Check if the dataset has the same columns as the knn_index
-        if not all(elem in dataset_columns for elem in knn_columns):
-            raise ValueError("The dataset must have the same columns as the knn_index")
-        else:
-            common_columns = list(set(knn_columns) & set(dataset_columns))
-            if len(common_columns) == 0:
-                raise ValueError("The dataset must have the same columns as the knn_index")
-            else:
+        found = False
+        common_columns = None
+        for column in dataset_columns:
+            if column in knn_columns:
+                found = True
+                common_columns = column
                 self.join_column = common_columns[0]
-        return None
+                break
+            
+        return found
 
 
     def start_qdrant(self):
@@ -40,7 +41,7 @@ class search_embeddings:
     def load_qdrant(self):
         return None
     
-    def qdrant_search(self, query, model):
+    def generate_embeddings(self, query, model):
         if isinstance(query, str):
             query = [query]
         elif not isinstance(query, list):
@@ -50,7 +51,9 @@ class search_embeddings:
         selected_endpoint = self.ipfs_embeddings_py.choose_endpoint(model)
         embeddings = self.ipfs_embeddings_py.https_index_knn(selected_endpoint, model)
         return embeddings
-
+    
+    def search_embeddings(self, embeddings):
+        return None
     
 
 if __name__ == '__main__':
@@ -64,4 +67,5 @@ if __name__ == '__main__':
     search_embeddings.stop_qdrant()
     search_embeddings.start_qdrant()
     search_embeddings.load_qdrant()
-    search_embeddings.qdrant_search(search_query, "BAAI/bge-m3")
+    embedding_results = search_embeddings.generate_embeddings(search_query, "BAAI/bge-m3")
+    embeddings_search = search_embeddings.search_embeddings(embedding_results)
