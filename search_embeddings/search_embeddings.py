@@ -151,7 +151,7 @@ class search_embeddings:
 if __name__ == '__main__':
     resources = {}
     metadata = {}
-    dataset = "laion/Wikipedia-X"
+    dataset = "laion/Wikipedia-X-Concat"
     faiss_index = "laion/Wikipedia-M3"
     search_query = "hello world"
     search_embeddings = search_embeddings(resources, metadata)
