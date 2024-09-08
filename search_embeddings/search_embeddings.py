@@ -96,10 +96,15 @@ class search_embeddings:
         collection_name = self.dataset_name
         embedding_size = len(self.knn_index[list(self.knn_index.keys())[0]].select([0])['Embeddings'][0][0])
         # Define the collection schema (adjust this to match your data's structure)
-        client.recreate_collection(
-            collection_name=collection_name,
-            vectors_config=models.VectorParams(size=embedding_size, distance=models.Distance.COSINE),
-        )
+
+        if (client.collection_exists(collection_name)):
+            print("Collection already exists")
+            return False
+        else:        
+            client.create_collection(
+                collection_name=collection_name,
+                vectors_config=models.VectorParams(size=embedding_size, distance=models.Distance.COSINE),
+            )
 
         # Chunk size for generating points
         chunk_size = 1
