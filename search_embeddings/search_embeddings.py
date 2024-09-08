@@ -6,6 +6,8 @@ import ipfs_embeddings_py
 import pandas as pd
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
+from qdrant_client.models import Distance, VectorParams
+
 import os
 import sys
 
@@ -90,11 +92,12 @@ class search_embeddings:
         # Load the Parquet file
 
         # Initialize Qdrant client
-        client = QdrantClient(host="localhost", port=6333)# Replace with your Qdrant server URL
-
+        # client = QdrantClient(":memory:") # Replace with your Qdrant server URL
+        client = QdrantClient(url="http://localhost:6333")
         # Define the collection name
         collection_name = self.dataset_name
-        embedding_size = len(self.knn_index[list(self.knn_index.keys())[0]].select([0])['Embeddings'][0][0])
+        embedding_size = 1024
+        # embedding_size = len(self.knn_index[list(self.knn_index.keys())[0]].select([0])['Embeddings'][0][0])
         # Define the collection schema (adjust this to match your data's structure)
 
         if (client.collection_exists(collection_name)):
@@ -103,7 +106,7 @@ class search_embeddings:
         else:        
             client.create_collection(
                 collection_name=collection_name,
-                vectors_config=models.VectorParams(size=embedding_size, distance=models.Distance.COSINE),
+                vectors_config=VectorParams(size=100, distance=Distance.COSINE),
             )
 
         # Chunk size for generating points
