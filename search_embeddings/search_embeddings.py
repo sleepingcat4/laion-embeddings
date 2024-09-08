@@ -35,34 +35,42 @@ class search_embeddings:
                 self.join_column = common_columns
                 break
         
-        columns = self.dataset.column_names["data"]
-        columns_to_keep = [common_columns, "Abstract"]
+        columns = self.dataset.column_names["enwiki_concat"]
+        columns_to_keep = [common_columns, "Concat Abstract"]
         columns_to_remove = set(columns_to_keep).symmetric_difference(columns)
         self.dataset = self.dataset.remove_columns(columns_to_remove)
-        self.dataset = datasets.concatenate_datasets([
-            self.dataset["data1"],
-            self.dataset["data2"],
-            self.dataset["data3"],
-            self.dataset["data4"],
-            self.dataset["data5"],
-            self.dataset["data6"],
-            self.dataset["data7"],
-            self.dataset["data8"],
-            self.dataset["data9"],
-            self.dataset["data10"],
-            self.dataset["data11"],
-            self.dataset["data12"],
-            self.dataset["data13"],
-            self.dataset["data14"],
-            self.dataset["data15"],
-            self.dataset["data16"],
-            self.dataset["data17"],
-            self.dataset["data18"],
-            self.dataset["data19"],
-            self.dataset["data20"]])
-        
+        # self.dataset = datasets.concatenate_datasets([
+            # self.dataset["enwiki_concat"]
+            # self.dataset['dewiki_concat'],
+            # self.dataset['frwiki_concat'],
+            # self.dataset['eswiki_concat'],
+            # self.dataset['ptwiki_concat'],
+            # self.dataset['ruwiki_concat'],
+            # self.dataset['zhwiki_concat']
+            # self.dataset["data1"],
+            # self.dataset["data2"],
+            # self.dataset["data3"],
+            # self.dataset["data4"],
+            # self.dataset["data5"],
+            # self.dataset["data6"],
+            # self.dataset["data7"],
+            # self.dataset["data8"],
+            # self.dataset["data9"],
+            # self.dataset["data10"],
+            # self.dataset["data11"],
+            # self.dataset["data12"],
+            # self.dataset["data13"],
+            # self.dataset["data14"],
+            # self.dataset["data15"],
+            # self.dataset["data16"],
+            # self.dataset["data17"],
+            # self.dataset["data18"],
+            # self.dataset["data19"],
+            # self.dataset["data20"]
+        # ])
+        # temp_dataset1 = self.dataset.to_pandas()
         temp_dataset2 = self.knn_index['enwiki_embed'].to_pandas()
-        temp_dataset1 = self.dataset.to_pandas()
+        temp_dataset1 = self.dataset['enwiki_concat'].to_pandas()
         self.joined_dataset = temp_dataset1.join(temp_dataset2.set_index(common_columns), on=common_columns)
         return found
 
