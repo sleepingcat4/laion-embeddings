@@ -119,7 +119,7 @@ class search_embeddings:
             chunk_df = self.joined_dataset[start:end]
             points = []
             for index, row in chunk_df.iterrows():
-                text = row["Abstract"]
+                text = row["Concat Abstract"]
                 embedding = row["Embeddings"]
                 points.append(models.PointStruct(
                     id=index,
