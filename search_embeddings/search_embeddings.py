@@ -95,9 +95,9 @@ class search_embeddings:
         # client = QdrantClient(":memory:") # Replace with your Qdrant server URL
         client = QdrantClient(url="http://localhost:6333")
         # Define the collection name
-        collection_name = self.dataset_name
-        embedding_size = 1024
-        # embedding_size = len(self.knn_index[list(self.knn_index.keys())[0]].select([0])['Embeddings'][0][0])
+        collection_name = self.dataset_name.split("/")[1]
+        # embedding_size = 1024
+        embedding_size = len(self.knn_index[list(self.knn_index.keys())[0]].select([0])['Embeddings'][0][0])
         # Define the collection schema (adjust this to match your data's structure)
 
         if (client.collection_exists(collection_name)):
