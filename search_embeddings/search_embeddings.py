@@ -67,12 +67,14 @@ class search_embeddings:
         return found
 
     def start_qdrant(self):
-        start_qdrant_cmd = "docker run -d --name qdrant -p 6333:6333 -v /tmp/qdrant:/qdrant/data qdrant/qdrant:latest"
+        docker_pull_cmd = "sudo docker pull qdrant/qdrant:latest"
+        os.system(docker_pull_cmd)
+        start_qdrant_cmd = "sudo docker run -d --name qdrant -p 6333:6333 -v /storage/qdrant:/qdrant/data qdrant/qdrant:latest"
         os.system(start_qdrant_cmd)
         return None
     
     def stop_qdrant(self):
-        kill_qdrant_cmd = "docker stop qdrant"
+        kill_qdrant_cmd = "sudo docker stop qdrant"
         os.system(kill_qdrant_cmd)
         return None
     
@@ -134,10 +136,15 @@ class search_embeddings:
         scores, samples = self.knn_index.get_nearest_examples(
            "embeddings", embeddings, k=5
         )
-        return None
+        return scores, samples 
     
-    def search_qdrant(self, embeddings):
-
+    def search_qdrant(self, embedding, dataset_name):
+        client = QdrantClient(host="localhost", port=6333)# Replace with your Qdrant server URL
+        search_result = client.search(
+            collection_name=dataset_name,
+            query_vector=embedding,
+            limit=5  # Return 5 closest points
+        )
         return None
     
 
@@ -149,9 +156,9 @@ if __name__ == '__main__':
     search_query = "hello world"
     search_embeddings = search_embeddings(resources, metadata)
     # search_embeddings.install_qdrant()
+    search_embeddings.stop_qdrant()
+    search_embeddings.start_qdrant()
     search_embeddings.init(dataset, faiss_index)
-    # search_embeddings.stop_qdrant()
-    # search_embeddings.start_qdrant()
     search_embeddings.load_qdrant()
     embedding_results = search_embeddings.generate_embeddings(search_query, "BAAI/bge-m3")
-    embeddings_search = search_embeddings.search_embeddings(embedding_results)
+    embeddings_search = search_embeddings.search_embeddings(embedding_results, dataset)
