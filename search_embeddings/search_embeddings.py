@@ -77,12 +77,12 @@ class search_embeddings:
     def start_qdrant(self):
         docker_pull_cmd = "sudo docker pull qdrant/qdrant:latest"
         os.system(docker_pull_cmd)
-        start_qdrant_cmd = "sudo docker run -d --name qdrant -p 6333:6333 -v /storage/qdrant:/qdrant/data qdrant/qdrant:latest"
+        start_qdrant_cmd = "sudo docker run -d -p 6333:6333 -v /storage/qdrant:/qdrant/data qdrant/qdrant:latest"
         os.system(start_qdrant_cmd)
         return None
     
     def stop_qdrant(self):
-        kill_qdrant_cmd = "sudo docker stop qdrant"
+        kill_qdrant_cmd = "sudo docker stop $(sudo docker ps -a -q --filter ancestor=qdrant/qdrant:latest --format={{.ID}})"
         os.system(kill_qdrant_cmd)
         return None
     
