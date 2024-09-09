@@ -10,6 +10,7 @@ from qdrant_client.models import Distance, VectorParams
 import numpy as np
 import os
 import sys
+import subprocess
 
 class search_embeddings:
     def __init__(self, resources, metadata):
@@ -22,7 +23,18 @@ class search_embeddings:
         self.ipfs_embeddings_py = ipfs_embeddings_py(resources, metadata)
         self.ipfs_embeddings_py.add_https_endpoint("BAAI/bge-m3", "http://62.146.169.111:80/embed",1)
         self.join_column = None
-
+        self.qdrant_found = False
+        qdrant_port_cmd = "nc -zv localhost 6333"
+        qdrant_port_cmd_results = os.system(qdrant_port_cmd)
+        if qdrant_port_cmd_results != 0:
+            self.start_qdrant()
+            qdrant_port_cmd_results = os.system(qdrant_port_cmd)
+            if qdrant_port_cmd_results == 0:
+                self.qdrant_found = True
+            else:
+                print("Qdrant failed to start, fallback to faiss")
+        else:
+            self.qdrant_found = True
 
     def start_qdrant(self):
         docker_pull_cmd = "sudo docker pull qdrant/qdrant:latest"
@@ -136,26 +148,13 @@ class search_embeddings:
         return results
     
     def search(self, query):
-        ## detect if port 6333 is open
-        qdrant_port_cmd = "nc -zv localhost 6333"
-        qdrant_port_cmd_results = os.system(qdrant_port_cmd)
-        found = False
-        if "succeeded!" not in qdrant_port_cmd_results:
-            self.start_qdrant()
-            qdrant_port_cmd_results = os.system(qdrant_port_cmd)
-            if "succeeded!" in qdrant_port_cmd_results:
-                found = True
-            else:
-                print("Qdrant failed to start")
-                return None
-        else:
-            found = True
-        if found:
+        if self.qdrant_found == True:
             query_embeddings = self.generate_embeddings(query)
             vector_search = search_embeddings.search_qdrant(query_embeddings, self.dataset.split("/")[1])
         else:
-            query_embeddings = self.generate_embeddings(query)
-            vector_search = search_embeddings.search_embeddings(query_embeddings)
+            print("Qdrant failed to start")
+            ## Fallback to faiss
+            return None
         return vector_search
     
 
@@ -167,15 +166,5 @@ if __name__ == '__main__':
     }
     resources = {}
     search_embeddings = search_embeddings(resources, metadata)
-
-    # search_embeddings = search_embeddings(resources, metadata)
-    # search_embeddings.dataset = "laion/Wikipedia-X-Concat"
-    # search_embeddings.faiss_index = "laion/Wikipedia-M3"
-    # search_embeddings.model = "BAAI/bge-m3"
-    # search_embeddings.install_qdrant()
-    # search_embeddings.stop_qdrant()
-    # search_embeddings.start_qdrant()
-    # search_embeddings.load_qdrant(dataset, faiss_index)
     results = search_embeddings.search("Machine Learning")
     print(results)
-    # embeddings_search2 = search_embeddings.search_embeddings(embedding_results)
