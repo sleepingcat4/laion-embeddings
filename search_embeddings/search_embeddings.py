@@ -2,12 +2,12 @@ import os
 import sys
 import datasets
 import json
-import ipfs_embeddings_py
+from . import ipfs_embeddings_py
 import pandas as pd
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from qdrant_client.models import Distance, VectorParams
-
+import numpy as np
 import os
 import sys
 
@@ -41,36 +41,6 @@ class search_embeddings:
         columns_to_keep = [common_columns, "Concat Abstract"]
         columns_to_remove = set(columns_to_keep).symmetric_difference(columns)
         self.dataset = self.dataset.remove_columns(columns_to_remove)
-        # self.dataset = datasets.concatenate_datasets([
-            # self.dataset["enwiki_concat"]
-            # self.dataset['dewiki_concat'],
-            # self.dataset['frwiki_concat'],
-            # self.dataset['eswiki_concat'],
-            # self.dataset['ptwiki_concat'],
-            # self.dataset['ruwiki_concat'],
-            # self.dataset['zhwiki_concat']
-            # self.dataset["data1"],
-            # self.dataset["data2"],
-            # self.dataset["data3"],
-            # self.dataset["data4"],
-            # self.dataset["data5"],
-            # self.dataset["data6"],
-            # self.dataset["data7"],
-            # self.dataset["data8"],
-            # self.dataset["data9"],
-            # self.dataset["data10"],
-            # self.dataset["data11"],
-            # self.dataset["data12"],
-            # self.dataset["data13"],
-            # self.dataset["data14"],
-            # self.dataset["data15"],
-            # self.dataset["data16"],
-            # self.dataset["data17"],
-            # self.dataset["data18"],
-            # self.dataset["data19"],
-            # self.dataset["data20"]
-        # ])
-        # temp_dataset1 = self.dataset.to_pandas()
         temp_dataset2 = self.knn_index['enwiki_embed'].to_pandas()
         temp_dataset1 = self.dataset['enwiki_concat'].to_pandas()
         self.joined_dataset = temp_dataset1.join(temp_dataset2.set_index(common_columns), on=common_columns)
@@ -88,11 +58,31 @@ class search_embeddings:
         os.system(kill_qdrant_cmd)
         return None
     
-    def load_qdrant(self):
-        # Load the Parquet file
-
-        # Initialize Qdrant client
-        # client = QdrantClient(":memory:") # Replace with your Qdrant server URL
+    def load_qdrant(self, dataset, knn_index):
+        self.knn_index = self.datasets.load_dataset(knn_index)
+        self.dataset = self.datasets.load_dataset(dataset)
+        self.dataset_name = dataset
+        self.knn_index_name = knn_index
+        knn_columns = self.knn_index.column_names[list(self.knn_index.column_names.keys())[0]]
+        dataset_columns = self.dataset.column_names[list(self.dataset.column_names.keys())[0]]
+        # Check if the dataset has the same columns as the knn_index
+        found = False
+        common_columns = None
+        for column in dataset_columns:
+            if column in knn_columns:
+                found = True
+                common_columns = column
+                self.join_column = common_columns
+                break
+        
+        columns = self.dataset.column_names["enwiki_concat"]
+        columns_to_keep = [common_columns, "Concat Abstract"]
+        columns_to_remove = set(columns_to_keep).symmetric_difference(columns)
+        self.dataset = self.dataset.remove_columns(columns_to_remove)
+        temp_dataset2 = self.knn_index['enwiki_embed'].to_pandas()
+        temp_dataset1 = self.dataset['enwiki_concat'].to_pandas()
+        self.joined_dataset = temp_dataset1.join(temp_dataset2.set_index(common_columns), on=common_columns)
+        
         client = QdrantClient(url="http://localhost:6333")
         # Define the collection name
         collection_name = self.dataset_name.split("/")[1]
@@ -154,14 +144,26 @@ class search_embeddings:
         )
         return scores, samples 
     
-    def search_qdrant(self, embedding, dataset_name):
-        client = QdrantClient(host="localhost", port=6333)# Replace with your Qdrant server URL
+    def search_qdrant(self, query_vector, dataset_name):
+        query_vector = np.array(query_vector[0][0])
+        client = QdrantClient(url="http://localhost:6333")
         search_result = client.search(
             collection_name=dataset_name,
-            query_vector=embedding,
+            query_vector=query_vector,
             limit=5  # Return 5 closest points
         )
-        return None
+        results = []
+        for point in search_result:
+            results.append({point.id: {
+                    "text": point.payload["text"],
+                    "score": point.score
+                }})       
+        return results
+    
+    def search(self, query, model):
+        query_embeddings = self.generate_embeddings(query, model)
+        vector_search = search_embeddings.search_qdrant(query_embeddings, self.dataset.split("/")[1])
+        return vector_search
     
 
 if __name__ == '__main__':
@@ -169,13 +171,10 @@ if __name__ == '__main__':
     metadata = {}
     dataset = "laion/Wikipedia-X-Concat"
     faiss_index = "laion/Wikipedia-M3"
-    search_query = "hello world"
     search_embeddings = search_embeddings(resources, metadata)
     # search_embeddings.install_qdrant()
-    search_embeddings.stop_qdrant()
-    search_embeddings.start_qdrant()
-    search_embeddings.init(dataset, faiss_index)
-    search_embeddings.load_qdrant()
-    embedding_results = search_embeddings.generate_embeddings(search_query, "BAAI/bge-m3")
-    embeddings_search = search_embeddings.search_qdrant(embedding_results, dataset.split("/")[1])
-    embeddings_search2 = search_embeddings.search_embeddings(embedding_results)
+    # search_embeddings.stop_qdrant()
+    # search_embeddings.start_qdrant()
+    # search_embeddings.load_qdrant(dataset, faiss_index)
+    results = search_embeddings.search("Machine Learning", "BAAI/bge-m3")
+    # embeddings_search2 = search_embeddings.search_embeddings(embedding_results)
