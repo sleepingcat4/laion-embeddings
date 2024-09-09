@@ -21,7 +21,11 @@ class search_embeddings:
             for key in metadata.keys():
                 setattr(self, key, metadata[key])
         self.ipfs_embeddings_py = ipfs_embeddings_py(resources, metadata)
-        self.ipfs_embeddings_py.add_https_endpoint("BAAI/bge-m3", "http://62.146.169.111:80/embed",1)
+        if "https_endpoints" in resources.keys():
+            for endpoint in resources["https_endpoints"]:
+                self.ipfs_embeddings_py.add_https_endpoint(endpoint[0], endpoint[1], endpoint[2])
+        else:
+            self.ipfs_embeddings_py.add_https_endpoint("BAAI/bge-m3", "http://62.146.169.111:80/embed",1)
         self.join_column = None
         self.qdrant_found = False
         qdrant_port_cmd = "nc -zv localhost 6333"
@@ -164,7 +168,9 @@ if __name__ == '__main__':
         "faiss_index": "laion/Wikipedia-M3",
         "model": "BAAI/bge-m3"
     }
-    resources = {}
+    resources = {
+        "https_endpoints": [["BAAI/bge-m3", "http://62.146.169.111:80/embed",1]]
+    }
     search_embeddings = search_embeddings(resources, metadata)
     results = search_embeddings.search("Machine Learning")
     print(results)

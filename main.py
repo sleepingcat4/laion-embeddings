@@ -7,7 +7,10 @@ metadata = {
     "faiss_index": "laion/Wikipedia-M3",
     "model": "BAAI/bge-m3"
 }
-resources = {}
+resources = {
+    "https_endpoints": [["BAAI/bge-m3", "http://62.146.169.111:80/embed",1]],
+    "libp2p_endpoints": []
+}
 vector_search = search_embeddings.search_embeddings(resources, metadata)
 app = FastAPI(port=9999)
 
