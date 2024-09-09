@@ -2,7 +2,7 @@ import os
 import sys
 import datasets
 import json
-from . import ipfs_embeddings_py
+from ipfs_embeddings_py import ipfs_embeddings_py
 import pandas as pd
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
@@ -16,7 +16,10 @@ class search_embeddings:
         self.resources = resources
         self.metadata = metadata
         self.datasets = datasets
-        self.ipfs_embeddings_py = ipfs_embeddings_py.ipfs_embeddings_py(resources, metadata)
+        if len(list(metadata.keys())) > 0:
+            for key in metadata.keys():
+                setattr(self, key, metadata[key])
+        self.ipfs_embeddings_py = ipfs_embeddings_py(resources, metadata)
         self.ipfs_embeddings_py.add_https_endpoint("BAAI/bge-m3", "http://62.146.169.111:80/embed",1)
         self.join_column = None
 
@@ -127,15 +130,15 @@ class search_embeddings:
         print("All data successfully ingested into Qdrant from huggingface dataset")
         return True
 
-    def generate_embeddings(self, query, model):
+    def generate_embeddings(self, query):
         if isinstance(query, str):
             query = [query]
         elif not isinstance(query, list):
             raise ValueError("Query must be a string or a list of strings")
         
         self.ipfs_embeddings_py.queue_index_knn(query)
-        selected_endpoint = self.ipfs_embeddings_py.choose_endpoint(model)
-        embeddings = self.ipfs_embeddings_py.https_index_knn(selected_endpoint, model)
+        selected_endpoint = self.ipfs_embeddings_py.choose_endpoint(self.model)
+        embeddings = self.ipfs_embeddings_py.https_index_knn(selected_endpoint, self.model)
         return embeddings
     
     def search_embeddings(self, embeddings):
@@ -160,21 +163,29 @@ class search_embeddings:
                 }})       
         return results
     
-    def search(self, query, model):
-        query_embeddings = self.generate_embeddings(query, model)
+    def search(self, query):
+        query_embeddings = self.generate_embeddings(query)
         vector_search = search_embeddings.search_qdrant(query_embeddings, self.dataset.split("/")[1])
         return vector_search
     
 
 if __name__ == '__main__':
+    metadata = {
+        "dataset": "laion/Wikipedia-X-Concat",
+        "faiss_index": "laion/Wikipedia-M3",
+        "model": "BAAI/bge-m3"
+    }
     resources = {}
-    metadata = {}
-    dataset = "laion/Wikipedia-X-Concat"
-    faiss_index = "laion/Wikipedia-M3"
     search_embeddings = search_embeddings(resources, metadata)
+
+    # search_embeddings = search_embeddings(resources, metadata)
+    # search_embeddings.dataset = "laion/Wikipedia-X-Concat"
+    # search_embeddings.faiss_index = "laion/Wikipedia-M3"
+    # search_embeddings.model = "BAAI/bge-m3"
     # search_embeddings.install_qdrant()
     # search_embeddings.stop_qdrant()
     # search_embeddings.start_qdrant()
     # search_embeddings.load_qdrant(dataset, faiss_index)
-    results = search_embeddings.search("Machine Learning", "BAAI/bge-m3")
+    results = search_embeddings.search("Machine Learning")
+    print(results)
     # embeddings_search2 = search_embeddings.search_embeddings(embedding_results)
