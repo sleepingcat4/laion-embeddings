@@ -23,31 +23,6 @@ class search_embeddings:
         self.ipfs_embeddings_py.add_https_endpoint("BAAI/bge-m3", "http://62.146.169.111:80/embed",1)
         self.join_column = None
 
-    def init(self, dataset, knn_index):
-        self.knn_index = self.datasets.load_dataset(knn_index)
-        self.dataset = self.datasets.load_dataset(dataset)
-        self.dataset_name = dataset
-        self.knn_index_name = knn_index
-        knn_columns = self.knn_index.column_names[list(self.knn_index.column_names.keys())[0]]
-        dataset_columns = self.dataset.column_names[list(self.dataset.column_names.keys())[0]]
-        # Check if the dataset has the same columns as the knn_index
-        found = False
-        common_columns = None
-        for column in dataset_columns:
-            if column in knn_columns:
-                found = True
-                common_columns = column
-                self.join_column = common_columns
-                break
-        
-        columns = self.dataset.column_names["enwiki_concat"]
-        columns_to_keep = [common_columns, "Concat Abstract"]
-        columns_to_remove = set(columns_to_keep).symmetric_difference(columns)
-        self.dataset = self.dataset.remove_columns(columns_to_remove)
-        temp_dataset2 = self.knn_index['enwiki_embed'].to_pandas()
-        temp_dataset1 = self.dataset['enwiki_concat'].to_pandas()
-        self.joined_dataset = temp_dataset1.join(temp_dataset2.set_index(common_columns), on=common_columns)
-        return found
 
     def start_qdrant(self):
         docker_pull_cmd = "sudo docker pull qdrant/qdrant:latest"
@@ -85,13 +60,10 @@ class search_embeddings:
         temp_dataset2 = self.knn_index['enwiki_embed'].to_pandas()
         temp_dataset1 = self.dataset['enwiki_concat'].to_pandas()
         self.joined_dataset = temp_dataset1.join(temp_dataset2.set_index(common_columns), on=common_columns)
-        
         client = QdrantClient(url="http://localhost:6333")
         # Define the collection name
         collection_name = self.dataset_name.split("/")[1]
-        # embedding_size = 1024
         embedding_size = len(self.knn_index[list(self.knn_index.keys())[0]].select([0])['Embeddings'][0][0])
-        # Define the collection schema (adjust this to match your data's structure)
 
         if (client.collection_exists(collection_name)):
             print("Collection already exists")

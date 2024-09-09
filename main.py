@@ -15,10 +15,13 @@ app = FastAPI(port=9999)
 def read_root():
     return {"Hello": "World"}
 
-
 @app.get("/search/{text}")
 def read_item(text: str, q: Union[str, None] = None):
     return vector_search.search(text)
+
+@app.get("/load/{dataset}/{faiss_index}")
+def load_index(dataset: str, faiss_index: str):
+    return vector_search.load_qdrant(dataset, faiss_index)
 
 if __name__ == '__main__':
     uvicorn.run(app, host="0.0.0.0", port=9999)
