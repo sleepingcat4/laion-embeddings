@@ -110,7 +110,7 @@ class search_embeddings:
             )
 
         # Chunk size for generating points
-        chunk_size = 10
+        chunk_size = 100
         knn_index_length = self.joined_dataset.shape[0]# Get the number of rows in the dataset
         # Prepare the points to be inserted in chunks
 
