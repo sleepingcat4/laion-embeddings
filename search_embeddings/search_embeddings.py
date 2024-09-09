@@ -177,5 +177,5 @@ if __name__ == '__main__':
     search_embeddings.init(dataset, faiss_index)
     search_embeddings.load_qdrant()
     embedding_results = search_embeddings.generate_embeddings(search_query, "BAAI/bge-m3")
-    embeddings_search = search_embeddings.search_qdrant(embedding_results, dataset)
+    embeddings_search = search_embeddings.search_qdrant(embedding_results, dataset.split("/")[1])
     embeddings_search2 = search_embeddings.search_embeddings(embedding_results)
