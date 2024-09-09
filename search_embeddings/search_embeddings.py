@@ -135,13 +135,13 @@ class search_embeddings:
         )
         return scores, samples 
     
-    def search_qdrant(self, query_vector, dataset_name):
+    def search_qdrant(self, query_vector, dataset_name, n=5):
         query_vector = np.array(query_vector[0][0])
         client = QdrantClient(url="http://localhost:6333")
         search_result = client.search(
             collection_name=dataset_name,
             query_vector=query_vector,
-            limit=5  # Return 5 closest points
+            limit=n
         )
         results = []
         for point in search_result:
@@ -151,10 +151,10 @@ class search_embeddings:
                 }})       
         return results
     
-    def search(self, query):
+    def search(self, query, n=5):
         if self.qdrant_found == True:
             query_embeddings = self.generate_embeddings(query)
-            vector_search = search_embeddings.search_qdrant(query_embeddings, self.dataset.split("/")[1])
+            vector_search = search_embeddings.search_qdrant(query_embeddings, self.dataset.split("/")[1], n)
         else:
             print("Qdrant failed to start")
             ## Fallback to faiss
