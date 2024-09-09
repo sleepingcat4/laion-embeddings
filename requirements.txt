@@ -1,1 +1,7 @@
 fastapi
+uvicorn
+pandas
+numpy
+qdrant-client
+multiformats
+ipfs_embeddings_py
