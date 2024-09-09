@@ -136,8 +136,26 @@ class search_embeddings:
         return results
     
     def search(self, query):
-        query_embeddings = self.generate_embeddings(query)
-        vector_search = search_embeddings.search_qdrant(query_embeddings, self.dataset.split("/")[1])
+        ## detect if port 6333 is open
+        qdrant_port_cmd = "nc -zv localhost 6333"
+        qdrant_port_cmd_results = os.system(qdrant_port_cmd)
+        found = False
+        if "succeeded!" not in qdrant_port_cmd_results:
+            self.start_qdrant()
+            qdrant_port_cmd_results = os.system(qdrant_port_cmd)
+            if "succeeded!" in qdrant_port_cmd_results:
+                found = True
+            else:
+                print("Qdrant failed to start")
+                return None
+        else:
+            found = True
+        if found:
+            query_embeddings = self.generate_embeddings(query)
+            vector_search = search_embeddings.search_qdrant(query_embeddings, self.dataset.split("/")[1])
+        else:
+            query_embeddings = self.generate_embeddings(query)
+            vector_search = search_embeddings.search_embeddings(query_embeddings)
         return vector_search
     
 
