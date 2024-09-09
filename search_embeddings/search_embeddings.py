@@ -120,7 +120,7 @@ class search_embeddings:
             points = []
             for index, row in chunk_df.iterrows():
                 text = row["Concat Abstract"]
-                embedding = row["Embeddings"]
+                embedding = row["Embeddings"][0]
                 points.append(models.PointStruct(
                     id=index,
                     vector=embedding.tolist() if embedding is not None else None,  # Convert embedding to list if not None
