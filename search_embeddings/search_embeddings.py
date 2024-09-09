@@ -111,12 +111,12 @@ class search_embeddings:
 
         # Chunk size for generating points
         chunk_size = 10
-        knn_index_length = len(list(self.knn_index))
+        knn_index_length = self.joined_dataset.shape[0]# Get the number of rows in the dataset
         # Prepare the points to be inserted in chunks
 
         for start in range(0, knn_index_length, chunk_size):
             end = min(start + chunk_size, knn_index_length)
-            chunk_df = self.joined_dataset[start:end]
+            chunk_df = self.joined_dataset.iloc[start:end]
             points = []
             for index, row in chunk_df.iterrows():
                 text = row["Concat Abstract"]
