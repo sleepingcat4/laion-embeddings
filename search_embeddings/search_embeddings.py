@@ -110,7 +110,7 @@ class search_embeddings:
             )
 
         # Chunk size for generating points
-        chunk_size = 1
+        chunk_size = 10
         knn_index_length = len(list(self.knn_index))
         # Prepare the points to be inserted in chunks
 
