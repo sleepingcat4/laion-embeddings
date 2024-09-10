@@ -36,19 +36,21 @@ class create_embeddings:
             self.faiss_index = self.datasets.load_dataset(faiss_dst)
         except:
             self.faiss_index = datasets.Dataset.from_dict({"cid": [], "embedding": []})
-        self.dataset = self.datasets.load_dataset(dataset)
+        self.dataset = self.datasets.load_dataset(dataset)['train']
         self.dataset_name = dataset
         self.faiss_index_name = faiss_dst
-        dataset_columns = self.dataset.column_names[list(self.dataset.column_names.keys())[0]]
+        dataset_columns = self.dataset.column_names
+        dataset_columns.append("cid")
         ## create new column in the dataset called "cid"
         self.dataset.add_column("cid", [str(i) for i in range(len(self.dataset))])
+        self.new_dataset = datasets.Dataset.from_dict({key: [] for key in dataset_columns })
         for row in self.dataset:
             this_row = row
-            del this_row["cid"]
-            cid = self.ipfs_embeddings_py.index_cid(cid, self.faiss_index, model)
-            row["cid"] = cid
-            if self.faiss_index.contains(cid):
-                continue
+            cid = self.ipfs_embeddings_py.index_cid(this_row["text"])
+            this_row["cid"] = cid
+            find_cid = self.faiss_index.filter_by("cid", cid)
+            if len(find_cid) > 0:
+                pass
             else:
                 embedding = self.ipfs_embeddings_py.index_knn(json.dumps(this_row), model)
                 new_row = {}
