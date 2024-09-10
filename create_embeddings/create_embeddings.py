@@ -30,7 +30,12 @@ class create_embeddings:
         self.join_column = None
 
     def index_dataset (self, dataset, faiss_dst, model):
-        self.faiss_index = self.datasets.load_dataset(faiss_dst)
+        #check if the dataset exists in the faiss index
+        dataset_exists = False
+        try:
+            self.faiss_index = self.datasets.load_dataset(faiss_dst)
+        except:
+            self.faiss_index = datasets.Dataset.from_dict({"cid": [], "embedding": []})
         self.dataset = self.datasets.load_dataset(dataset)
         self.dataset_name = dataset
         self.faiss_index_name = faiss_dst
@@ -56,13 +61,13 @@ class create_embeddings:
     
 if __name__ == '__main__':
     metadata = {
-        "dataset": "laion/Wikipedia-X-Concat",
-        "faiss_index": "laion/Wikipedia-M3",
+        "dataset": "TeraflopAI/Caselaw_Access_Project",
+        "faiss_index": "TeraflopAI/Caselaw_Access_Project_M3_Embeddings",
         "model": "BAAI/bge-m3"
     }
     resources = {
         "https_endpoints": [["BAAI/bge-m3", "http://62.146.169.111:80/embed",1]]
     }
     create_embeddings = create_embeddings(resources, metadata)
-    results = create_embeddings.index_dataset("laion/Wikipedia-X-Concat")
+    results = create_embeddings.index_dataset(metadata["dataset"], metadata["faiss_index"], metadata["model"])
     print(results)
