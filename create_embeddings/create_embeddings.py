@@ -44,6 +44,7 @@ class create_embeddings:
         ## create new column in the dataset called "cid"
         self.dataset.add_column("cid", [str(i) for i in range(len(self.dataset))])
         self.new_dataset = datasets.Dataset.from_dict({key: [] for key in dataset_columns })
+        new_rows = []
         for row in self.dataset:
             this_row = row
             cid = self.ipfs_embeddings_py.index_cid(this_row["text"])
@@ -52,19 +53,25 @@ class create_embeddings:
             if find_cid.num_rows > 0:
                 pass
             else:
-                embedding = self.ipfs_embeddings_py.index_knn(this_row["text"], model)
+                embedding = self.ipfs_embeddings_py.index_knn(this_row["text"], model)[0]
                 new_row = {}
                 new_row["cid"] = cid
                 new_row["embedding"] = embedding
-                self.faiss_index.add(new_row)
-        self.dataset.save()
-        self.faiss_index.save()
+                new_rows.append(new_row)
+        new_dataset = datasets.Dataset.from_dict({key: [row[key] for row in new_rows] for key in new_rows[0].keys()})
+        self.faiss_index = new_dataset
+        self.dataset.save_to_disk(f"/storage/teraflopai/{self.dataset_name}.arrow")
+        self.faiss_index.save_to_disk(f"/storage/teraflopai/{self.faiss_index_name}.arrow")
+        self.dataset.to_parquet(f"/storage/teraflopai/{self.dataset_name}.parquet")
+        self.faiss_index.to_parquet(f"/storage/teraflopai/{self.faiss_index_name}.parquet")
+        self.dataset.push_to_hub(self.dataset_name, use_temp_dir=True, message="Update dataset")
+        self.faiss_index.push_to_hub(self.faiss_index_name, use_temp_dir=True, message="Update faiss index")
         return None
     
 if __name__ == '__main__':
     metadata = {
         "dataset": "TeraflopAI/Caselaw_Access_Project",
-        "faiss_index": "TeraflopAI/Caselaw_Access_Project_M3_Embeddings",
+        "faiss_index": "endomorphosis/Caselaw_Access_Project_M3_Embeddings",
         "model": "BAAI/bge-m3"
     }
     resources = {
