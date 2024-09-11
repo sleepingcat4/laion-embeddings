@@ -48,11 +48,11 @@ class create_embeddings:
             this_row = row
             cid = self.ipfs_embeddings_py.index_cid(this_row["text"])
             this_row["cid"] = cid
-            find_cid = self.faiss_index.filter_by("cid", cid)
-            if len(find_cid) > 0:
+            find_cid = self.faiss_index.filter(lambda x: x["cid"] == cid)
+            if find_cid.num_rows > 0:
                 pass
             else:
-                embedding = self.ipfs_embeddings_py.index_knn(json.dumps(this_row), model)
+                embedding = self.ipfs_embeddings_py.index_knn(this_row["text"], model)
                 new_row = {}
                 new_row["cid"] = cid
                 new_row["embedding"] = embedding
