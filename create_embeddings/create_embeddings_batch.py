@@ -34,22 +34,26 @@ class create_embeddings_batch:
         self.join_column = None
 
     async def producer(self, dataset_stream, queues):
-        for item in dataset_stream:
+        async for item in self.async_generator(dataset_stream):
             # Assuming `item` is a dictionary with required data
             for queue in queues:
                 await queue.put(item)  # Non-blocking put
 
-    async def consumer(self, queue, batch_size, model_name, session):
+    async def async_generator(self, iterable):
+        for item in iterable:
+            yield item
+
+    async def consumer(self, queue, batch_size, model_name):
         batch = []
         while True:
             item = await queue.get()  # Wait for item
             batch.append(item)
             if len(batch) >= batch_size:
                 # Process batch
-                await self.send_batch(batch, model_name, session)
+                await self.send_batch(batch, model_name)
                 batch = []  # Clear batch after sending
 
-    async def send_batch(self, batch, model_name, session):
+    async def send_batch(self, batch, model_name):
         print(f"Sending batch of size {len(batch)} to model {model_name}")
         return None
     
@@ -60,19 +64,17 @@ class create_embeddings_batch:
         except:
             self.faiss_index = datasets.Dataset.from_dict({"cid": [], "embedding": []})
         # Load a stream from HuggingFace datasets
-        self.dataset = load_dataset(dataset, split='train', streaming=True)
+        self.dataset = load_dataset(dataset, split='train', streaming=False)
 
         # Create queues for different models
-        self.ipfs_embeddings_py.queue1 = asyncio.Queue()
-        self.ipfs_embeddings_py.queue2 = asyncio.Queue()
+        self.ipfs_embeddings_py.queue1 = asyncio.Queue(128)
+        self.ipfs_embeddings_py.queue2 = asyncio.Queue(128)
 
-        # Setup HTTP session
-        async with ClientSession() as session:
-            # Start producer and consumers
-            producer_task = asyncio.create_task(self.producer(self.dataset, [self.ipfs_embeddings_py.queue1, self.ipfs_embeddings_py.queue2]))
-            consumer_task1 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue1 , 10, model1, session))
-            consumer_task2 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue2, 20, model2, session))
-            await asyncio.gather(producer_task, consumer_task1, consumer_task2)
+        # Start producer and consumers
+        producer_task = asyncio.create_task(self.producer(self.dataset, [self.ipfs_embeddings_py.queue1, self.ipfs_embeddings_py.queue2]))
+        consumer_task1 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue1 , 10, model1 ))
+        consumer_task2 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue2, 20, model2))
+        await asyncio.gather(producer_task, consumer_task1, consumer_task2)
 
 if __name__ == "__main__":
     metadata = {
