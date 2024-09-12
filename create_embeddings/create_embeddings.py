@@ -68,6 +68,26 @@ class create_embeddings:
         self.faiss_index.push_to_hub(self.faiss_index_name, use_temp_dir=True, message="Update faiss index")
         return None
     
+    async def batch_index_dataset (self, dataset, faiss_dst, model):
+        dataset_exists = False
+        try:
+            self.faiss_index = self.datasets.load_dataset(faiss_dst)
+        except:
+            self.faiss_index = datasets.Dataset.from_dict({"cid": [], "embedding": []})
+        self.dataset = self.datasets.load_dataset(dataset)['train']
+        self.dataset_name = dataset
+        self.faiss_index_name = faiss_dst
+        dataset_columns = self.dataset.column_names
+        dataset_columns.append("cid")
+        ## create new column in the dataset called "cid"
+        self.dataset.add_column("cid", [str(i) for i in range(len(self.dataset))])
+        self.new_dataset = datasets.Dataset.from_dict({key: [] for key in dataset_columns })
+        new_rows = []
+        for this_row in self.dataset:
+            self.ipfs_embeddings_py.queue_index_cid(this_row["text"])
+            self.ipfs_embeddings_py.queue_index_knn(this_row["text"], model)
+        return None
+    
 if __name__ == '__main__':
     metadata = {
         "dataset": "TeraflopAI/Caselaw_Access_Project",
@@ -79,4 +99,6 @@ if __name__ == '__main__':
     }
     create_embeddings = create_embeddings(resources, metadata)
     results = create_embeddings.index_dataset(metadata["dataset"], metadata["faiss_index"], metadata["model"])
+    results = create_embeddings.batch_index_dataset(metadata["dataset"], metadata["faiss_index"], metadata["model"])
+
     print(results)
