@@ -16,15 +16,15 @@ class test_embeddings:
                 batch.append("Hello World")
             try:
                 embeddings = self.ipfs_embeddings_py.index_knn(batch, model)
+                if not isinstance(embeddings[0], list):
+                    raise Exception("Embeddings not returned as list")
                 embed_fail = False
                 exponent += 1
                 batch_size = 2**exponent
             except:
                 embed_fail = True
-                print(f"Batch size {batch_size} failed")
                 pass
-        
-        return batch_size
+        return 2**(exponent-1)
     
 if __name__ == '__main__':
     metadata = {
@@ -36,4 +36,4 @@ if __name__ == '__main__':
         "https_endpoints": [["BAAI/bge-m3", "http://62.146.169.111:80/embed",1]]
     }
     test = test_embeddings(resources, metadata)
-    test.test(metadata["model"])
+    print(test.test(metadata["model"]))
