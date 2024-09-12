@@ -115,7 +115,29 @@ class ipfs_embeddings_py:
                 this_sample_cid = self.multiformats.get_cid(this_sample)
                 self.knn_index[this_sample_cid] = this_sample
         return None
-    
+
+
+       
+    def test(self, model):
+        embed_fail = False
+        exponent = 1
+        batch = []
+        batch_size = 2**exponent
+        while embed_fail == False:
+            while len(batch) < batch_size:
+                batch.append("Hello World")
+            try:
+                embeddings = self.index_knn(batch, model)
+                if not isinstance(embeddings[0], list):
+                    raise Exception("Embeddings not returned as list")
+                embed_fail = False
+                exponent += 1
+                batch_size = 2**exponent
+            except:
+                embed_fail = True
+                pass
+        return 2**(exponent-1)
+
     def queue_index_cid(self, samples):
         if type(samples) is None:
             raise ValueError("samples must be a list")
