@@ -67,12 +67,12 @@ class create_embeddings_batch:
         self.dataset = load_dataset(dataset, split='train', streaming=False)
 
         # Create queues for different models
-        self.ipfs_embeddings_py.queue1 = asyncio.Queue(128)
-        self.ipfs_embeddings_py.queue2 = asyncio.Queue(128)
+        self.ipfs_embeddings_py.queue1 = asyncio.Queue(256)
+        self.ipfs_embeddings_py.queue2 = asyncio.Queue(256)
 
         # Start producer and consumers
         producer_task = asyncio.create_task(self.producer(self.dataset, [self.ipfs_embeddings_py.queue1, self.ipfs_embeddings_py.queue2]))
-        consumer_task1 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue1 , 10, model1 ))
+        consumer_task1 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue1, 10, model1 ))
         consumer_task2 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue2, 20, model2))
         await asyncio.gather(producer_task, consumer_task1, consumer_task2)
 
