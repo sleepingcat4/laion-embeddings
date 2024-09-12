@@ -30,48 +30,64 @@ class create_embeddings_batch:
                 self.ipfs_embeddings_py.add_https_endpoint(endpoint[0], endpoint[1], endpoint[2])
         else:
             self.ipfs_embeddings_py.add_https_endpoint("BAAI/bge-m3", "http://62.146.169.111:80/embed",1)
+            self.ipfs_embeddings_py.add_https_endpoint("BAAI/bge-en-icl", "http://62.146.169.111:80/embed",1)
         self.join_column = None
 
-    async def producer(dataset_stream, queues):
-        async for item in dataset_stream:
+    async def producer(self, dataset_stream, queues):
+        for item in dataset_stream:
             # Assuming `item` is a dictionary with required data
             for queue in queues:
                 await queue.put(item)  # Non-blocking put
 
-    async def consumer(queue, batch_size, model_name, session):
+    async def consumer(self, queue, batch_size, model_name, session):
         batch = []
         while True:
             item = await queue.get()  # Wait for item
             batch.append(item)
             if len(batch) >= batch_size:
                 # Process batch
-                await send_batch(batch, model_name, session)
+                await self.send_batch(batch, model_name, session)
                 batch = []  # Clear batch after sending
 
-    async def send_batch(batch, model_name, session):
-        url = f"https://api.example.com/embeddings/{model_name}"
-        payload = {'data': batch}
-        async with session.post(url, json=payload) as response:
-            result = await response.json()
-            print(f"Received result for {model_name}: {result}")
-            # Process or store result
-
-    async def main():
+    async def send_batch(self, batch, model_name, session):
+        print(f"Sending batch of size {len(batch)} to model {model_name}")
+        return None
+    
+    async def main(self, dataset, faiss_index, model1, model2):
+        dataset_exists = False
+        try:
+            self.faiss_index = self.datasets.load_dataset(faiss_index)
+        except:
+            self.faiss_index = datasets.Dataset.from_dict({"cid": [], "embedding": []})
         # Load a stream from HuggingFace datasets
-        dataset_stream = load_dataset('dataset_name', split='train', streaming=True)
+        self.dataset = load_dataset(dataset, split='train', streaming=True)
 
         # Create queues for different models
-        queue1 = asyncio.Queue()
-        queue2 = asyncio.Queue()
+        self.ipfs_embeddings_py.queue1 = asyncio.Queue()
+        self.ipfs_embeddings_py.queue2 = asyncio.Queue()
 
         # Setup HTTP session
         async with ClientSession() as session:
             # Start producer and consumers
-            producer_task = asyncio.create_task(producer(dataset_stream, [queue1, queue2]))
-            consumer_task1 = asyncio.create_task(consumer(queue1, 10, 'model1', session))
-            consumer_task2 = asyncio.create_task(consumer(queue2, 20, 'model2', session))
-
+            producer_task = asyncio.create_task(self.producer(self.dataset, [self.ipfs_embeddings_py.queue1, self.ipfs_embeddings_py.queue2]))
+            consumer_task1 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue1 , 10, model1, session))
+            consumer_task2 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue2, 20, model2, session))
             await asyncio.gather(producer_task, consumer_task1, consumer_task2)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    metadata = {
+        "dataset": "TeraflopAI/Caselaw_Access_Project",
+        "faiss_index": "endomorphosis/Caselaw_Access_Project_M3_Embeddings",
+        "model1": "BAAI/bge-m3",
+        "model2": "BAAI/bge-en-icl"
+    }
+    resources = {
+        "https_endpoints": [
+            ["BAAI/bge-m3", "http://62.146.169.111:80/embed",1],
+            ["BAAI/bge-en-icl", "http://62.146.169.111:80/embed",1]
+        ]
+    }
+    create_embeddings_batch = create_embeddings_batch(resources, metadata)
+    asyncio.run(create_embeddings_batch.main(metadata["dataset"], metadata["faiss_index"], metadata["model1"], metadata["model2"]))
+
+    
