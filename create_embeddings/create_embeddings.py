@@ -98,7 +98,7 @@ if __name__ == '__main__':
         "https_endpoints": [["BAAI/bge-m3", "http://62.146.169.111:80/embed",1]]
     }
     create_embeddings = create_embeddings(resources, metadata)
-    results = create_embeddings.index_dataset(metadata["dataset"], metadata["faiss_index"], metadata["model"])
+    # results = create_embeddings.index_dataset(metadata["dataset"], metadata["faiss_index"], metadata["model"])
     results = create_embeddings.batch_index_dataset(metadata["dataset"], metadata["faiss_index"], metadata["model"])
 
     print(results)
