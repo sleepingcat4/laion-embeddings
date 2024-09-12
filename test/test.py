@@ -44,3 +44,7 @@ if __name__ == '__main__':
     }
     test_search = test_search_embeddings(resources, metadata)
     test_search.__test__()
+
+    test_create = test_create_embeddings(resources, metadata)
+    test_create.__test__()
+    
