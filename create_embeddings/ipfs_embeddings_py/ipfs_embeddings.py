@@ -282,7 +282,7 @@ class ipfs_embeddings_py:
         for data in test_data:
             test_cid_index = self.index_cid(data)
             test_knn_index = self.index_knn(data)
-        
+
         print("test")
 
     def status(self):

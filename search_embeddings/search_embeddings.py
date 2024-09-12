@@ -160,17 +160,3 @@ class search_embeddings:
             ## Fallback to faiss
             return None
         return vector_search
-    
-
-if __name__ == '__main__':
-    metadata = {
-        "dataset": "laion/Wikipedia-X-Concat",
-        "faiss_index": "laion/Wikipedia-M3",
-        "model": "BAAI/bge-m3"
-    }
-    resources = {
-        "https_endpoints": [["BAAI/bge-m3", "http://62.146.169.111:80/embed",1]]
-    }
-    search_embeddings = search_embeddings(resources, metadata)
-    results = search_embeddings.search("Machine Learning")
-    print(results)
