@@ -10,15 +10,15 @@ class test_embeddings:
         embed_fail = False
         exponent = 1
         batch = []
-        batch_size = 2^exponent
+        batch_size = 2**exponent
         while embed_fail == False:
             while len(batch) < batch_size:
                 batch.append("Hello World")
             try:
                 embeddings = self.ipfs_embeddings_py.index_knn(batch, model)
-                embed_fail = True
+                embed_fail = False
                 exponent += 1
-                batch_size = 2^exponent
+                batch_size = 2**exponent
             except:
                 embed_fail = True
                 print(f"Batch size {batch_size} failed")
