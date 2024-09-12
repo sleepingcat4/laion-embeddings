@@ -64,16 +64,19 @@ class create_embeddings_batch:
         except:
             self.faiss_index = datasets.Dataset.from_dict({"cid": [], "embedding": []})
         # Load a stream from HuggingFace datasets
-        self.dataset = load_dataset(dataset, split='train', streaming=False)
-
+        self.dataset = load_dataset(dataset, split='train', streaming=True)
+        batch_size_1 = 32
+        batch_size_2 = 32
+        # batch_size_1 = await self.ipfs_embeddings_py.max_batch_size(model1)
+        # batch_size_2 = await self.ipfs_embeddings_py.max_batch_size(model2)
         # Create queues for different models
-        self.ipfs_embeddings_py.queue1 = asyncio.Queue(256)
-        self.ipfs_embeddings_py.queue2 = asyncio.Queue(256)
+        self.ipfs_embeddings_py.queue1 = asyncio.Queue(batch_size_1)
+        self.ipfs_embeddings_py.queue2 = asyncio.Queue(batch_size_2)
 
         # Start producer and consumers
         producer_task = asyncio.create_task(self.producer(self.dataset, [self.ipfs_embeddings_py.queue1, self.ipfs_embeddings_py.queue2]))
-        consumer_task1 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue1, 10, model1 ))
-        consumer_task2 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue2, 20, model2))
+        consumer_task1 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue1, batch_size_1, model1 ))
+        consumer_task2 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue2, batch_size_2, model2))
         await asyncio.gather(producer_task, consumer_task1, consumer_task2)
 
 if __name__ == "__main__":
