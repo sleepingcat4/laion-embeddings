@@ -1,5 +1,6 @@
 from .ipfs_multiformats import *
 from .ipfs_only_hash import *
+import requests
 import subprocess
 import os
 import json
@@ -84,7 +85,8 @@ class ipfs_embeddings_py:
                     return endpoint
         return None
 
-    def index_ipfs(self, samples):
+    def index_cid(self, samples):
+        results = []
         if type(samples) is None:
             raise ValueError("samples must be a list")
         if type(samples) is str:
@@ -98,23 +100,58 @@ class ipfs_embeddings_py:
             for this_sample in samples:
                 this_sample_cid = self.multiformats.get_cid(this_sample)
                 self.cid_index[this_sample_cid] = this_sample
-        return None
+                results.append(this_sample_cid)
+        return results
     
-    def index_knn(self, samples):
+    def max_batch_size(self, model, endpoint=None):
+        embed_fail = False
+        exponent = 1
+        batch = []
+        batch_size = 2**exponent
+        while embed_fail == False:
+            while len(batch) < batch_size:
+                batch.append("Hello World")
+            try:
+                embeddings = self.index_knn(batch, model, endpoint)
+                if not isinstance(embeddings[0], list):
+                    raise Exception("Embeddings not returned as list")
+                embed_fail = False
+                exponent += 1
+                batch_size = 2**exponent
+            except:
+                embed_fail = True
+                pass
+        return 2**(exponent-1)
+    
+    def index_knn(self, samples, model, chosen_endpoint=None):
+        knn_stack = []
         if type(samples) is None:
             raise ValueError("samples must be a list")
         if type(samples) is str:
             samples = [samples]
         if type(samples) is iter:
             for this_sample in samples:
-                this_sample_cid = self.multiformats.get_cid(this_sample)
-                self.knn_index[this_sample_cid] = this_sample
+                if chosen_endpoint is None:
+                    chosen_endpoint = self.choose_endpoint(model)
+                this_sample_len = len(this_sample)
+                if this_sample_len > 8192:
+                    this_sample = this_sample[:8192]
+                this_sample = {"inputs": this_sample}
+                query_response = self.make_post_request(chosen_endpoint, this_sample)
+                knn_stack.append(query_response)
             pass
         if type(samples) is list:
             for this_sample in samples:
-                this_sample_cid = self.multiformats.get_cid(this_sample)
-                self.knn_index[this_sample_cid] = this_sample
-        return None
+                if chosen_endpoint is None:
+                    chosen_endpoint = self.choose_endpoint(model)
+                this_sample_len = len(this_sample)
+                if this_sample_len > 8192:
+                    this_sample = this_sample[:8192]
+                this_sample = {"inputs": this_sample}
+                query_response = self.make_post_request(chosen_endpoint, this_sample)
+                knn_stack.append(query_response)
+            pass
+        return knn_stack
     
     def queue_index_cid(self, samples):
         if type(samples) is None:
@@ -150,6 +187,12 @@ class ipfs_embeddings_py:
             return True
         else:
             raise ValueError("samples must be a list")
+
+
+    def make_post_request(self, endpoint, data):
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(endpoint, headers=headers, json=data)
+        return response.json()
 
     def choose_endpoint(self, model):
         print("choose_endpoint")
@@ -188,9 +231,8 @@ class ipfs_embeddings_py:
         queue_knn = self.pop_index_knn(batch_size)
         json_queue_knn = json.dumps(queue_knn)
         for i in queue_knn:
-            query_request = "curl " +  selected_endpoint + " -X POST     -d '{\"inputs\": " + json_queue_knn +  " }' -H 'Content-Type: application/json'"
-            query_response = subprocess.check_output(query_request, shell=True).decode("utf-8")
-            query_response = json.loads(query_response)
+            this_sample = {"inputs": i}
+            query_response = self.make_post_request(selected_endpoint, this_sample)
             knn_stack.append(query_response)
         return knn_stack
     
@@ -250,10 +292,3 @@ class ipfs_embeddings_py:
     def setStatus(self,endpoint , status):
         self.endpoint_status[endpoint] = status
         return None
-
-if __name__ == '__main__':
-    resources = {}
-    metedata = {}
-    ipfs_embeddings = ipfs_embeddings_py(resources, metedata)
-    ipfs_embeddings.test()
-    print("test")
