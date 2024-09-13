@@ -1,5 +1,5 @@
 from ipfs_embeddings_py import ipfs_embeddings_py
-
+import uuid
 class test_embeddings:
     def __init__(self, resources, metadata):
         self.ipfs_embeddings_py = ipfs_embeddings_py(resources, metadata)
@@ -13,7 +13,8 @@ class test_embeddings:
         batch_size = 2**exponent
         while embed_fail == False:
             while len(batch) < batch_size:
-                batch.append("Hello World")
+                generate_random_uuid = str(uuid.uuid4())
+                batch.append(generate_random_uuid)
             try:
                 embeddings = self.ipfs_embeddings_py.index_knn(batch, model)
                 if not isinstance(embeddings[0], list):
@@ -23,7 +24,7 @@ class test_embeddings:
                 batch_size = 2**exponent
             except:
                 embed_fail = True
-                pass
+                pass    
         return 2**(exponent-1)
     
 if __name__ == '__main__':
@@ -33,7 +34,7 @@ if __name__ == '__main__':
         "model": "BAAI/bge-m3"
     }
     resources = {
-        "https_endpoints": [["BAAI/bge-m3", "http://62.146.169.111:80/embed",1]]
+        "https_endpoints": [["BAAI/bge-m3", "http://127.0.0.1:8080/embed",1]]
     }
     test = test_embeddings(resources, metadata)
     print(test.test(metadata["model"]))
