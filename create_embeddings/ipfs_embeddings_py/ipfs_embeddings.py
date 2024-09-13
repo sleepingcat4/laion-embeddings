@@ -22,27 +22,28 @@ class ipfs_embeddings_py:
         self.choose_endpoint = self.choose_endpoint
         self.pop_index_knn = self.pop_index_knn
         self.pop_index_cid = self.pop_index_cid
+        self.max_batch_size = self.max_batch_size
         return None
     
     def load_index(self, index):
         self.index = index
         return None 
     
-    def add_https_endpoint(self, model, endpoint, batch_size):
+    def add_https_endpoint(self, model, endpoint, context_length):
         if model not in self.https_endpoints:
             self.https_endpoints[model] = {}
             self.endpoint_status[endpoint] = 1
         if endpoint not in self.https_endpoints[model]:  
-            self.https_endpoints[model][endpoint] = batch_size
+            self.https_endpoints[model][endpoint] = context_length
             self.endpoint_status[endpoint] = 1
         return None
     
-    def add_libp2p_endpoint(self, model, endpoint, batch_size):
+    def add_libp2p_endpoint(self, model, endpoint, context_length):
         if model not in self.libp2p_endpoints:
             self.libp2p_endpoints[model] = {}
             self.endpoint_status[endpoint] = 1
         if endpoint not in self.libp2p_endpoints[model]:  
-            self.libp2p_endpoints[model][endpoint] = batch_size
+            self.libp2p_endpoints[model][endpoint] = context_length
             self.endpoint_status[endpoint] = 1
         return None
     
@@ -104,6 +105,7 @@ class ipfs_embeddings_py:
         return results
     
     def max_batch_size(self, model, endpoint=None):
+        print("max_batch_size")
         embed_fail = False
         exponent = 1
         batch = []
@@ -141,15 +143,21 @@ class ipfs_embeddings_py:
                 knn_stack.append(query_response)
             pass
         if type(samples) is list:
-            for this_sample in samples:
-                if chosen_endpoint is None:
-                    chosen_endpoint = self.choose_endpoint(model)
-                this_sample_len = len(this_sample)
-                if this_sample_len > 8192:
-                    this_sample = this_sample[:8192]
-                this_sample = {"inputs": this_sample}
-                query_response = self.make_post_request(chosen_endpoint, this_sample)
-                knn_stack.append(query_response)
+            if chosen_endpoint is None:
+                chosen_endpoint = self.choose_endpoint(model)
+            this_query = {"inputs": samples}
+            query_response = self.make_post_request(chosen_endpoint, this_query)
+            if isinstance(query_response, dict) and "error" in query_response.keys():
+                raise Exception("error: " + query_response["error"])
+            else:
+                knn_stack = query_response
+            # for this_sample in samples:
+            #     this_sample_len = len(this_sample)
+            #     if this_sample_len > 8192:
+            #         this_sample = this_sample[:8192]
+            #     this_sample = {"inputs": this_sample}
+            #     query_response = self.make_post_request(chosen_endpoint, this_sample)
+            #     knn_stack.append(query_response)
             pass
         return knn_stack
     
