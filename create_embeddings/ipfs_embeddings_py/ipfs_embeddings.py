@@ -4,6 +4,7 @@ import requests
 import subprocess
 import os
 import json
+import re
 class ipfs_embeddings_py:
     def __init__(self, resources, metedata):
         self.multiformats = ipfs_multiformats_py(resources, metedata)
@@ -199,6 +200,18 @@ class ipfs_embeddings_py:
 
     def make_post_request(self, endpoint, data):
         headers = {'Content-Type': 'application/json'}
+        # sanitize data
+        for input in range(len(data["inputs"])):
+            this_input = data["inputs"][input]
+            if isinstance(this_input, str):
+                # remove anything that would cause errors in json parsing
+                # this_input = re.sub(r'[^\x00-\x7F]+', '', this_input)  # remove non-ASCII characters
+                # this_input = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', '', this_input)  # remove control characters
+                # this_input = re.sub(r'[\\"]', '', this_input)  # remove backslashes and double quotes
+                # this_input = re.sub(r'[\b\f\n\r\t]', '', this_input)  # remove escape characters
+                this_input = re.sub(r'[^a-zA-Z0-9\s]', '', this_input)  # remove all special characters
+                data["inputs"][input] = this_input
+
         response = requests.post(endpoint, headers=headers, json=data)
         return response.json()
 
