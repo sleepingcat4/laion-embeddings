@@ -207,9 +207,9 @@ class ipfs_embeddings_py:
         print(model)
         https_endpoints = self.get_https_endpoint(model)
         libp2p_endpoints = self.get_libp2p_endpoint(model)
-        filtered_libp2p_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1}
-        filtered_https_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1}
-        if len(filtered_https_endpoints) == 0 and len(filtered_libp2p_endpoints) == 0:
+        filtered_libp2p_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1 and libp2p_endpoints is not None and k in list(libp2p_endpoints.keys())}
+        filtered_https_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1 and https_endpoints is not None and k in list(https_endpoints.keys())}
+        if ( not filtered_https_endpoints and not filtered_libp2p_endpoints):
             return None
         else:
             this_endpoint = None
