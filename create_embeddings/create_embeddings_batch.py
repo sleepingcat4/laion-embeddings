@@ -64,7 +64,7 @@ class create_embeddings_batch:
         print(f"Sending batch of size {len(batch)} to model {model_name}")
         endpoint = list(self.ipfs_embeddings_py.https_endpoints[model_name].keys())[0]
         model_context_length = self.ipfs_embeddings_py.https_endpoints[model_name][endpoint]
-        model_context_length = round(float(model_context_length * 0.75))
+        model_context_length = round(float(model_context_length * 0.5))
         new_batch = []
         for item in batch:
             self.tokenizer = tiktoken.get_encoding("gpt2")
