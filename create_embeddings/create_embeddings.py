@@ -99,6 +99,6 @@ if __name__ == '__main__':
     }
     create_embeddings = create_embeddings(resources, metadata)
     # results = create_embeddings.index_dataset(metadata["dataset"], metadata["faiss_index"], metadata["model"])
-    results = create_embeddings.batch_index_dataset(metadata["dataset"], metadata["faiss_index"], metadata["model"])
+    results = create_embeddings.index_dataset(metadata["dataset"], metadata["faiss_index"], metadata["model"])
 
     print(results)

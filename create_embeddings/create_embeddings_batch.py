@@ -94,7 +94,6 @@ class create_embeddings_batch:
         # Create queues for different models
         self.ipfs_embeddings_py.queue1 = asyncio.Queue(batch_size_1)
         self.ipfs_embeddings_py.queue2 = asyncio.Queue(batch_size_2)
-
         # Start producer and consumers
         producer_task = asyncio.create_task(self.producer(self.dataset, [self.ipfs_embeddings_py.queue1, self.ipfs_embeddings_py.queue2]))
         consumer_task1 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue1, batch_size_1, model1 ))
