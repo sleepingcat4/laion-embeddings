@@ -87,8 +87,8 @@ class create_embeddings_batch:
             self.faiss_index = datasets.Dataset.from_dict({"cid": [], "embedding": []})
         # Load a stream from HuggingFace datasets
         self.dataset = load_dataset(dataset, split='train', streaming=True)
-        batch_size_1 = 16
-        batch_size_2 = 16
+        batch_size_1 = 1
+        batch_size_2 = 1
         # batch_size_1 = await self.ipfs_embeddings_py.max_batch_size(model1)
         # batch_size_2 = await self.ipfs_embeddings_py.max_batch_size(model2)
         # Create queues for different models
