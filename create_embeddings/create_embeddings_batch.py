@@ -111,6 +111,8 @@ class create_embeddings_batch:
                 self.saved = True
 
     async def main(self, dataset, dst_path, model1, model2):
+        if not os.path.exists(dst_path):
+            os.makedirs(dst_path)
         self.dataset = load_dataset(dataset, split='train', streaming=True)
         columns = self.dataset.column_names
         columns.append("cid")
