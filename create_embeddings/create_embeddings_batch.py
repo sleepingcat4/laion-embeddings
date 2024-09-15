@@ -72,6 +72,7 @@ class create_embeddings_batch:
                     this_cid = self.ipfs_embeddings_py.index_cid(batch[i]["text"])[0]
                     self.index[model_name] = self.index[model_name].add_item({"cid": this_cid, "embedding": results[i]})
                 batch = []  # Clear batch after sending
+                self.saved = False
             
 
     async def send_batch(self, batch, model_name):
@@ -95,14 +96,16 @@ class create_embeddings_batch:
         return results
     
     async def save_to_disk(self, dataset, model1, model2):
+        self.saved = False
         while True:
-            if self.ipfs_embeddings_py.queue1.empty() and self.ipfs_embeddings_py.queue1.empty():
+            if self.ipfs_embeddings_py.queue1.empty() and self.ipfs_embeddings_py.queue1.empty() and self.saved == False:   
                 self.new_dataset.save_to_disk(f"/storage/teraflopai/{dataset}.arrow")
                 self.new_dataset.to_parquet(f"/storage/teraflopai/{dataset}.parquet")
                 self.index[model1].save_to_disk(f"/storage/teraflopai/{model1.replace("/","---")}.arrow")
                 self.index[model1].to_parquet(f"/storage/teraflopai/{model1}.parquet")
                 self.index[model2].save_to_disk(f"/storage/teraflopai/{model2.replace("/","---")}.arrow")
                 self.index[model2].to_parquet(f"/storage/teraflopai/{model2}.parquet")
+                self.saved = True
 
     async def main(self, dataset, model1, model2):
         self.dataset = load_dataset(dataset, split='train', streaming=True)
