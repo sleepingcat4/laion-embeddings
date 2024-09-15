@@ -19,7 +19,7 @@ import tiktoken
 import transformers
 from transformers import AutoTokenizer
 import asyncio
-
+import time
 class create_embeddings_batch:
     def __init__(self, resources, metadata):
         self.resources = resources
@@ -99,7 +99,7 @@ class create_embeddings_batch:
     async def save_to_disk(self, dataset, model1, model2):
         self.saved = False
         while True:
-            await asyncio.sleep(30)
+            await asyncio.sleep(300)
             if self.ipfs_embeddings_py.queue1.empty() and self.ipfs_embeddings_py.queue1.empty() and self.saved == False:   
                 self.new_dataset.save_to_disk(f"/storage/teraflopai/{dataset}.arrow")
                 self.new_dataset.to_parquet(f"/storage/teraflopai/{dataset}.parquet")
