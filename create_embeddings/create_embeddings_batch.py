@@ -16,6 +16,8 @@ import sys
 import subprocess
 import json
 import tiktoken
+import transformers
+from transformers import AutoTokenizer
 
 class create_embeddings_batch:
     def __init__(self, resources, metadata):
@@ -34,6 +36,7 @@ class create_embeddings_batch:
             self.ipfs_embeddings_py.add_https_endpoint("BAAI/bge-m3", "http://62.146.169.111:80/embed", 8192)
             self.ipfs_embeddings_py.add_https_endpoint("Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://62.146.169.111:80/embed", 32768 )
         self.join_column = None
+        self.tokenizer = {}
 
     async def producer(self, dataset_stream, queues):
         async for item in self.async_generator(dataset_stream):
@@ -67,12 +70,13 @@ class create_embeddings_batch:
         model_context_length = round(float(model_context_length * 0.5))
         new_batch = []
         for item in batch:
-            self.tokenizer = tiktoken.get_encoding("gpt2")
-            this_item_tokens = len(self.tokenizer.encode(item["text"]))
+            if model_name not in self.tokenizer.keys():
+                self.tokenizer[model_name] = AutoTokenizer.from_pretrained(model_name)
+            this_item_tokens = len(self.tokenizer[model_name].encode(item["text"]))
             if this_item_tokens > model_context_length:
-                encoded_item = self.tokenizer .encode(item["text"])
+                encoded_item = self.tokenizer[model_name](item["text"], return_tensors="pt")["input_ids"].tolist()[0]
                 truncated_encoded_item = encoded_item[:model_context_length]
-                unencode_item = self.tokenizer.decode(truncated_encoded_item)
+                unencode_item = self.tokenizer[model_name].decode(truncated_encoded_item)
                 new_batch.append(unencode_item)
             else:
                 new_batch.append(item["text"])
@@ -87,8 +91,8 @@ class create_embeddings_batch:
             self.faiss_index = datasets.Dataset.from_dict({"cid": [], "embedding": []})
         # Load a stream from HuggingFace datasets
         self.dataset = load_dataset(dataset, split='train', streaming=True)
-        batch_size_1 = 1
-        batch_size_2 = 1
+        batch_size_1 = 32
+        batch_size_2 = 32
         # batch_size_1 = await self.ipfs_embeddings_py.max_batch_size(model1)
         # batch_size_2 = await self.ipfs_embeddings_py.max_batch_size(model2)
         # Create queues for different models
