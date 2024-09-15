@@ -96,33 +96,33 @@ class create_embeddings_batch:
         results = self.ipfs_embeddings_py.index_knn(new_batch, model_name)
         return results
     
-    async def save_to_disk(self, dataset, model1, model2):
+    async def save_to_disk(self, dataset, dst_path, model1, model2):
         self.saved = False
         while True:
             await asyncio.sleep(300)
             if self.ipfs_embeddings_py.queue1.empty() and self.ipfs_embeddings_py.queue1.empty() and self.saved == False:   
-                self.new_dataset.save_to_disk(f"/storage/teraflopai/{dataset}.arrow")
-                self.new_dataset.to_parquet(f"/storage/teraflopai/{dataset}.parquet")
-                self.index[model1].save_to_disk(f"/storage/teraflopai/{model1.replace("/","---")}.arrow")
-                self.index[model1].to_parquet(f"/storage/teraflopai/{model1}.parquet")
-                self.index[model2].save_to_disk(f"/storage/teraflopai/{model2.replace("/","---")}.arrow")
-                self.index[model2].to_parquet(f"/storage/teraflopai/{model2}.parquet")
+                self.new_dataset.save_to_disk(f"{dst_path}/{dataset}.arrow")
+                self.new_dataset.to_parquet(f"{dst_path}/{dataset}.parquet")
+                self.index[model1].save_to_disk(f"{dst_path}/{model1.replace("/","---")}.arrow")
+                self.index[model1].to_parquet(f"{dst_path}/{model1.replace("/","---")}.parquet")
+                self.index[model2].save_to_disk(f"/{dst_path}/{model2.replace("/","---")}.arrow")
+                self.index[model2].to_parquet(f"{dst_path}/{model2.replace("/","---")}.parquet")
                 self.saved = True
 
-    async def main(self, dataset, model1, model2):
+    async def main(self, dataset, dst_path, model1, model2):
         self.dataset = load_dataset(dataset, split='train', streaming=True)
         columns = self.dataset.column_names
         columns.append("cid")
-        if os.path.isfile(f"/storage/teraflopai/{dataset}.arrow") == True:
-            self.new_dataset = self.datasets.load_dataset(f"/storage/teraflopai/{dataset}.arrow")
+        if os.path.isfile(f"{dst_path}/{dataset}.arrow") == True:
+            self.new_dataset = self.datasets.load_dataset(f"{dst_path}/{dataset}.arrow")
         else:
             self.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
-        if os.path.isfile(f"/storage/teraflopai/{model1.replace("/","---")}.arrow") == True:
-            self.index[model1] = self.datasets.load_dataset(f"/storage/teraflopai/{model1.replace("/","---")}.arrow")
+        if os.path.isfile(f"{dst_path}/{model1.replace("/","---")}.arrow") == True:
+            self.index[model1] = self.datasets.load_dataset(f"{dst_path}/{model1.replace("/","---")}.arrow")
         else:
             self.index[model1] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
-        if os.path.isfile(f"/storage/teraflopai/{model2.replace("/","---")}.arrow") == True:
-            self.index[model2] = self.datasets.load_dataset(f"/storage/teraflopai/{model2.replace("/","---")}.arrow")
+        if os.path.isfile(f"{dst_path}/{model2.replace("/","---")}.arrow") == True:
+            self.index[model2] = self.datasets.load_dataset(f"{dst_path}/{model2.replace("/","---")}.arrow")
         else:
             self.index[model2] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
         batch_size_1 = 32
@@ -136,14 +136,15 @@ class create_embeddings_batch:
         producer_task = asyncio.create_task(self.producer(self.dataset, [self.ipfs_embeddings_py.queue1, self.ipfs_embeddings_py.queue2]))
         consumer_task1 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue1, batch_size_1, model1))
         consumer_task2 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue2, batch_size_2, model2))
-        save_task = asyncio.create_task(self.save_to_disk(dataset, model1, model2))
+        save_task = asyncio.create_task(self.save_to_disk(dataset, dst_path, model1, model2))
         await asyncio.gather(producer_task, consumer_task1, consumer_task2, save_task)
 
 if __name__ == "__main__":
     metadata = {
         "dataset": "TeraflopAI/Caselaw_Access_Project",
         "model1": "BAAI/bge-m3",
-        "model2": "Alibaba-NLP/gte-Qwen2-1.5B-instruct"
+        "model2": "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
+        "dst_path": "/storage/teraflopai"
     }
     resources = {
         "https_endpoints": [
@@ -152,5 +153,5 @@ if __name__ == "__main__":
         ]
     }
     create_embeddings_batch = create_embeddings_batch(resources, metadata)
-    asyncio.run(create_embeddings_batch.main(metadata["dataset"], metadata["model1"], metadata["model2"]))
+    asyncio.run(create_embeddings_batch.main(metadata["dataset"], metadata["dst_path"], metadata["model1"], metadata["model2"]))
     
