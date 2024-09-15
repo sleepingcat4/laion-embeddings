@@ -51,7 +51,7 @@ class create_embeddings_batch:
     async def consumer(self, queue, batch_size, model_name):
         batch = []
         if model_name not in self.index.keys():
-            self.index[model_name] = []
+            self.index[model_name] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
         while True:
             item = await queue.get()  # Wait for item
             batch.append(item)
@@ -60,7 +60,7 @@ class create_embeddings_batch:
                 results = await self.send_batch(batch, model_name)
                 for i in range(len(results)):
                     this_cid = self.ipfs_embeddings_py.index_cid(batch[i]["text"])[0]
-                    self.index[model_name].append({this_cid : results[i] })
+                    self.index[model_name] = self.index[model_name].add_item({"cid": this_cid, "embedding": results[i]})
                 batch = []  # Clear batch after sending
 
     async def send_batch(self, batch, model_name):
