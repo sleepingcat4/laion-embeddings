@@ -22,16 +22,17 @@ class ipfs_multiformats_py:
         return mh
 
     # Step 3: Generate CID from Multihash (CIDv1)
-    def get_cid(self, file_path):
-        if os.path.isfile(file_path) == True:
-            absolute_path = os.path.abspath(file_path)
-            file_content_hash = self.get_file_sha256(file_path)
+    def get_cid(self, file_data):
+        if os.path.isfile(file_data) == True:
+            absolute_path = os.path.abspath(file_data)
+            file_content_hash = self.get_file_sha256(file_data)
             mh = self.get_multihash_sha256(file_content_hash)
             cid = CID('base32', 'raw', mh)
         else:
             with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-                f.write(file_path)
                 filename = f.name
+                with open(filename, 'w') as f_new:
+                    f_new.write(file_data)
                 file_content_hash = self.get_file_sha256(filename)
                 mh = self.get_multihash_sha256(file_content_hash)
                 cid = CID('base32', 1, 'raw', mh)

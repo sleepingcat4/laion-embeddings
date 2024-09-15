@@ -26,6 +26,7 @@ class create_embeddings_batch:
         self.metadata = metadata
         self.datasets = datasets
         self.index =  {}
+        self.cid_list = []
         if len(list(metadata.keys())) > 0:
             for key in metadata.keys():
                 setattr(self, key, metadata[key])
@@ -47,11 +48,11 @@ class create_embeddings_batch:
             if "cid" not in column_names:
                 item["cid"] = self.ipfs_embeddings_py.index_cid(item["text"])[0]
             # Check if cid is in index
-            find_cid = self.new_dataset.filter(lambda x: x["cid"] == this_cid)
-            if find_cid.num_rows > 0:
+            if this_cid in self.cid_list:
                 pass
             else:
-                self.new_dataset.add_item(item)    
+                self.cid_list.append(this_cid)
+                self.new_dataset = self.new_dataset.add_item(item)    
                 for queue in queues:
                     await queue.put(item)  # Non-blocking put
 
@@ -115,6 +116,7 @@ class create_embeddings_batch:
         columns.append("cid")
         if os.path.isfile(f"{dst_path}/{dataset}.arrow") == True:
             self.new_dataset = self.datasets.load_dataset(f"{dst_path}/{dataset}.arrow")
+            self.cid_list = self.new_dataset["cid"]
         else:
             self.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
         if os.path.isfile(f"{dst_path}/{model1.replace("/","---")}.arrow") == True:
