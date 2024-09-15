@@ -4,6 +4,7 @@ import requests
 import subprocess
 import os
 import json
+import re
 class ipfs_embeddings_py:
     def __init__(self, resources, metedata):
         self.multiformats = ipfs_multiformats_py(resources, metedata)
@@ -132,15 +133,14 @@ class ipfs_embeddings_py:
         if type(samples) is str:
             samples = [samples]
         if type(samples) is iter:
-            for this_sample in samples:
-                if chosen_endpoint is None:
-                    chosen_endpoint = self.choose_endpoint(model)
-                this_sample_len = len(this_sample)
-                if this_sample_len > 8192:
-                    this_sample = this_sample[:8192]
-                this_sample = {"inputs": this_sample}
-                query_response = self.make_post_request(chosen_endpoint, this_sample)
-                knn_stack.append(query_response)
+            if chosen_endpoint is None:
+                chosen_endpoint = self.choose_endpoint(model)
+            this_query = {"inputs": samples}
+            query_response = self.make_post_request(chosen_endpoint, this_query)
+            if isinstance(query_response, dict) and "error" in query_response.keys():
+                raise Exception("error: " + query_response["error"])
+            else:
+                knn_stack = query_response
             pass
         if type(samples) is list:
             if chosen_endpoint is None:
@@ -151,13 +151,6 @@ class ipfs_embeddings_py:
                 raise Exception("error: " + query_response["error"])
             else:
                 knn_stack = query_response
-            # for this_sample in samples:
-            #     this_sample_len = len(this_sample)
-            #     if this_sample_len > 8192:
-            #         this_sample = this_sample[:8192]
-            #     this_sample = {"inputs": this_sample}
-            #     query_response = self.make_post_request(chosen_endpoint, this_sample)
-            #     knn_stack.append(query_response)
             pass
         return knn_stack
     
@@ -199,6 +192,21 @@ class ipfs_embeddings_py:
 
     def make_post_request(self, endpoint, data):
         headers = {'Content-Type': 'application/json'}
+        # sanitize data
+        for input in range(len(data["inputs"])):
+            this_input = data["inputs"][input]
+            if isinstance(this_input, str):
+                # remove anything that would cause errors in json parsing
+                # this_input = re.sub(r'[^\x00-\x7F]+', ' ', this_input)  # remove non-ASCII characters
+                this_input = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', ' ', this_input)  # remove control characters
+                this_input = re.sub(r'[\\"]', ' ', this_input)  # remove backslashes and double quotes
+                ## convert double quotes to escape characters
+                this_input = re.sub(r'["]', '\"', this_input)
+                this_input = re.sub(r'[\b\f\n\r\t]', ' ', this_input)  # remove escape characters
+                # this_input = re.sub(r'[^a-zA-Z0-9\s]', ' ', this_input)  # remove all special characters
+                this_input = re.sub(r'\s+', ' ', this_input)  # remove extra spaces
+                data["inputs"][input] = this_input
+        print(data)
         response = requests.post(endpoint, headers=headers, json=data)
         return response.json()
 
@@ -207,9 +215,9 @@ class ipfs_embeddings_py:
         print(model)
         https_endpoints = self.get_https_endpoint(model)
         libp2p_endpoints = self.get_libp2p_endpoint(model)
-        filtered_libp2p_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1}
-        filtered_https_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1}
-        if len(filtered_https_endpoints) == 0 and len(filtered_libp2p_endpoints) == 0:
+        filtered_libp2p_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1 and libp2p_endpoints is not None and k in list(libp2p_endpoints.keys())}
+        filtered_https_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1 and https_endpoints is not None and k in list(https_endpoints.keys())}
+        if ( not filtered_https_endpoints and not filtered_libp2p_endpoints):
             return None
         else:
             this_endpoint = None
