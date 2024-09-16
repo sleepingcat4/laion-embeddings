@@ -155,7 +155,6 @@ if __name__ == "__main__":
         "https_endpoints": [
             ["BAAI/bge-m3", "http://62.146.169.111:80/embed", 8192],
             ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 32786],
-            # ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 16384],
             ["dunzhang/stella_en_1.5B_v5", "http://127.0.0.1:8080/embed", 131072]
         ]
     }
