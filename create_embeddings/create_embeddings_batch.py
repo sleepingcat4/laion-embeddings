@@ -55,6 +55,7 @@ class create_embeddings_batch:
                 self.new_dataset = self.new_dataset.add_item(item)    
                 for queue in queues.values():
                     await queue.put(item)  # Non-blocking put
+        return None
 
     async def async_generator(self, iterable):
         for item in iterable:
@@ -74,8 +75,8 @@ class create_embeddings_batch:
                     self.index[model_name] = self.index[model_name].add_item({"cid": batch[i]["cid"], "embedding": results[i]})
                 batch = []  # Clear batch after sending
                 self.saved = False
-            
-
+        return None
+                
     async def send_batch(self, batch, column, model_name):
         print(f"Sending batch of size {len(batch)} to model {model_name}")
         endpoint = list(self.ipfs_embeddings_py.https_endpoints[model_name].keys())[0]
@@ -152,9 +153,6 @@ if __name__ == "__main__":
             "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
             # "dunzhang/stella_en_1.5B_v5",
         ],
-        "model1": "BAAI/bge-m3",
-        "model2": "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
-        "model3": "dunzhang/stella_en_1.5B_v5",
         "dst_path": "/storage/teraflopai"
     }
     resources = {
