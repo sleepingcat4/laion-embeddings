@@ -6,16 +6,34 @@ import os
 import json
 import re
 import random
+import datasets
+import asyncio
+from aiohttp import ClientSession
+from datasets import load_dataset
+import os
+import sys
+import datasets
+from ipfs_embeddings_py import ipfs_embeddings_py
+import os
+import sys
+import subprocess
+from transformers import AutoTokenizer
+
 class ipfs_embeddings_py:
     def __init__(self, resources, metedata):
         self.multiformats = ipfs_multiformats_py(resources, metedata)
         self.ipfs_only_hash = ipfs_only_hash_py(resources, metedata)
         self.https_endpoints = {}
         self.libp2p_endpoints = {}
+        self.datasets = datasets
+        self.index =  {}
+        self.cid_list = []
         self.cid_queue = iter([])
         self.knn_queue = iter([])
         self.cid_index = {}
         self.knn_index = {}
+        self.join_column = None
+        self.tokenizer = {}
         self.endpoint_status = {}
         self.add_https_endpoint = self.add_https_endpoint
         self.rm_https_endpoint = self.rm_https_endpoint
@@ -194,19 +212,10 @@ class ipfs_embeddings_py:
     def make_post_request(self, endpoint, data):
         headers = {'Content-Type': 'application/json'}
         # sanitize data
-        for input in range(len(data["inputs"])):
-            this_input = data["inputs"][input]
-            if isinstance(this_input, str):
-                # remove anything that would cause errors in json parsing
-                # this_input = re.sub(r'[^\x00-\x7F]+', ' ', this_input)  # remove non-ASCII characters
-                # this_input = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', ' ', this_input)  # remove control characters
-                # this_input = re.sub(r'[\\"]', ' ', this_input)  # remove backslashes and double quotes
-                ## convert double quotes to escape characters
-                # this_input = re.sub(r'["]', '\"', this_input)
-                # this_input = re.sub(r'[\b\f\n\r\t]', ' ', this_input)  # remove escape characters
-                # this_input = re.sub(r'[^a-zA-Z0-9\s]', ' ', this_input)  # remove all special characters
-                # this_input = re.sub(r'\s+', ' ', this_input)  # remove extra spaces
-                data["inputs"][input] = this_input
+        # for input in range(len(data["inputs"])):
+        #     this_input = data["inputs"][input]
+        #     if isinstance(this_input, str):
+        #         data["inputs"][input] = this_input
         print(data)
         response = requests.post(endpoint, headers=headers, json=data)
         return response.json()
@@ -301,6 +310,84 @@ class ipfs_embeddings_py:
             test_knn_index = self.index_knn(data)
 
         print("test")
+
+    async def async_generator(self, iterable):
+        for item in iterable:
+            yield item
+
+
+    async def consumer(self, queue, column, batch_size, model_name):
+        batch = []
+        if model_name not in self.index.keys():
+            self.index[model_name] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
+        while True:
+            item = await queue.get()  # Wait for item
+            batch.append(item)
+            if len(batch) >= batch_size:
+                # Process batch
+                results = await self.send_batch(batch, column, model_name)
+                for i in range(len(results)):
+                    self.index[model_name] = self.index[model_name].add_item({"cid": batch[i]["cid"], "embedding": results[i]})
+                batch = []  # Clear batch after sending
+                self.saved = False
+        return None
+
+    async def producer(self, dataset_stream, column, queues):
+        async for item in self.async_generator(dataset_stream):
+            # Assuming `item` is a dictionary with required data
+            column_names = item.keys()
+            this_cid = self.index_cid(item[column])[0]
+            if "cid" not in column_names:
+                item["cid"] = self.index_cid(item[column])[0]
+            # Check if cid is in index
+            if this_cid in self.cid_list:
+                pass
+            else:
+                self.cid_list.append(this_cid)
+                self.new_dataset = self.new_dataset.add_item(item)    
+                for queue in queues.values():
+                    await queue.put(item)  # Non-blocking put
+        return None
+
+
+    async def send_batch(self, batch, column, model_name):
+        print(f"Sending batch of size {len(batch)} to model {model_name}")
+        endpoint = list(self.https_endpoints[model_name].keys())[0]
+        model_context_length = self.https_endpoints[model_name][endpoint]
+        new_batch = []
+        for item in batch:
+            if model_name not in self.tokenizer.keys():
+                self.tokenizer[model_name] = AutoTokenizer.from_pretrained(model_name)
+            this_item_tokens = len(self.tokenizer[model_name].encode(item[column]))
+            if this_item_tokens > model_context_length:
+                encoded_item = self.tokenizer[model_name](item[column], return_tensors="pt")["input_ids"].tolist()[0]
+                truncated_encoded_item = encoded_item[:model_context_length]
+                unencode_item = self.tokenizer[model_name].decode(truncated_encoded_item)
+                new_batch.append(unencode_item)
+            else:
+                new_batch.append(item[column])
+        results = self.index_knn(new_batch, model_name)
+        return results
+
+    async def save_to_disk(self, dataset, dst_path, models):
+        self.saved = False
+        while True:
+            await asyncio.sleep(30)
+            empty = True
+            for queue in self.ipfs_embeddings_py.queues.values():
+                if not queue.empty():
+                    empty = False
+
+            if empty == True and self.saved == False:   
+                self.new_dataset.save_to_disk(f"{dst_path}/{dataset.replace("/","---")}.arrow")
+                self.new_dataset.to_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")
+                for model in models:
+                    self.index[model].save_to_disk(f"{dst_path}/{model.replace("/","---")}.arrow")
+                    self.index[model].to_parquet(f"{dst_path}/{model.replace("/","---")}.parquet")
+                self.saved = True
+        return None
+
+
 
     def status(self):
         return self.endpoint_status

@@ -4,22 +4,13 @@ from datasets import load_dataset
 import os
 import sys
 import datasets
-import json
 from ipfs_embeddings_py import ipfs_embeddings_py
-import pandas as pd
-from qdrant_client import QdrantClient
-from qdrant_client.http import models
-from qdrant_client.models import Distance, VectorParams
-import numpy as np
 import os
 import sys
 import subprocess
-import json
-import tiktoken
-import transformers
 from transformers import AutoTokenizer
-import asyncio
-import time
+
+
 class create_embeddings_batch:
     def __init__(self, resources, metadata):
         self.resources = resources
