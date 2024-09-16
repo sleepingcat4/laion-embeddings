@@ -71,8 +71,7 @@ class create_embeddings_batch:
                 # Process batch
                 results = await self.send_batch(batch, column, model_name)
                 for i in range(len(results)):
-                    this_cid = self.ipfs_embeddings_py.index_cid(batch[i][column])[0]
-                    self.index[model_name] = self.index[model_name].add_item({"cid": this_cid, "embedding": results[i]})
+                    self.index[model_name] = self.index[model_name].add_item({"cid": batch[i]["cid"], "embedding": results[i]})
                 batch = []  # Clear batch after sending
                 self.saved = False
             
@@ -81,7 +80,6 @@ class create_embeddings_batch:
         print(f"Sending batch of size {len(batch)} to model {model_name}")
         endpoint = list(self.ipfs_embeddings_py.https_endpoints[model_name].keys())[0]
         model_context_length = self.ipfs_embeddings_py.https_endpoints[model_name][endpoint]
-        model_context_length = round(float(model_context_length * 0.5))
         new_batch = []
         for item in batch:
             if model_name not in self.tokenizer.keys():
@@ -102,8 +100,8 @@ class create_embeddings_batch:
         while True:
             await asyncio.sleep(300)
             if self.ipfs_embeddings_py.queue1.empty() and self.ipfs_embeddings_py.queue1.empty() and self.saved == False:   
-                self.new_dataset.save_to_disk(f"{dst_path}/{dataset}.arrow")
-                self.new_dataset.to_parquet(f"{dst_path}/{dataset}.parquet")
+                self.new_dataset.save_to_disk(f"{dst_path}/{dataset.replace("/","---")}.arrow")
+                self.new_dataset.to_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")
                 self.index[model1].save_to_disk(f"{dst_path}/{model1.replace("/","---")}.arrow")
                 self.index[model1].to_parquet(f"{dst_path}/{model1.replace("/","---")}.parquet")
                 self.index[model2].save_to_disk(f"/{dst_path}/{model2.replace("/","---")}.arrow")
@@ -131,6 +129,7 @@ class create_embeddings_batch:
             self.index[model2] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
         batch_size_1 = 32
         batch_size_2 = 32
+        batch_size_3 = 32
         # batch_size_1 = await self.ipfs_embeddings_py.max_batch_size(model1)
         # batch_size_2 = await self.ipfs_embeddings_py.max_batch_size(model2)
         # Create queues for different models
@@ -149,12 +148,15 @@ if __name__ == "__main__":
         "column": "text",
         "model1": "BAAI/bge-m3",
         "model2": "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
+        "model3": "dunzhang/stella_en_1.5B_v5",
         "dst_path": "/storage/teraflopai"
     }
     resources = {
         "https_endpoints": [
             ["BAAI/bge-m3", "http://62.146.169.111:80/embed", 8192],
-            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 32768]
+            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 32786],
+            # ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 16384],
+            ["dunzhang/stella_en_1.5B_v5", "http://127.0.0.1:8080/embed", 131072]
         ]
     }
     create_embeddings_batch = create_embeddings_batch(resources, metadata)
