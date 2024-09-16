@@ -10,7 +10,6 @@ import sys
 import subprocess
 from transformers import AutoTokenizer
 
-
 class create_embeddings_batch:
     def __init__(self, resources, metadata):
         self.resources = resources
@@ -31,80 +30,6 @@ class create_embeddings_batch:
         self.join_column = None
         self.tokenizer = {}
 
-    async def producer(self, dataset_stream, column, queues):
-        async for item in self.async_generator(dataset_stream):
-            # Assuming `item` is a dictionary with required data
-            column_names = item.keys()
-            this_cid = self.ipfs_embeddings_py.index_cid(item[column])[0]
-            if "cid" not in column_names:
-                item["cid"] = self.ipfs_embeddings_py.index_cid(item[column])[0]
-            # Check if cid is in index
-            if this_cid in self.cid_list:
-                pass
-            else:
-                self.cid_list.append(this_cid)
-                self.new_dataset = self.new_dataset.add_item(item)    
-                for queue in queues.values():
-                    await queue.put(item)  # Non-blocking put
-        return None
-
-    async def async_generator(self, iterable):
-        for item in iterable:
-            yield item
-
-    async def consumer(self, queue, column, batch_size, model_name):
-        batch = []
-        if model_name not in self.index.keys():
-            self.index[model_name] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
-        while True:
-            item = await queue.get()  # Wait for item
-            batch.append(item)
-            if len(batch) >= batch_size:
-                # Process batch
-                results = await self.send_batch(batch, column, model_name)
-                for i in range(len(results)):
-                    self.index[model_name] = self.index[model_name].add_item({"cid": batch[i]["cid"], "embedding": results[i]})
-                batch = []  # Clear batch after sending
-                self.saved = False
-        return None
-                
-    async def send_batch(self, batch, column, model_name):
-        print(f"Sending batch of size {len(batch)} to model {model_name}")
-        endpoint = list(self.ipfs_embeddings_py.https_endpoints[model_name].keys())[0]
-        model_context_length = self.ipfs_embeddings_py.https_endpoints[model_name][endpoint]
-        new_batch = []
-        for item in batch:
-            if model_name not in self.tokenizer.keys():
-                self.tokenizer[model_name] = AutoTokenizer.from_pretrained(model_name)
-            this_item_tokens = len(self.tokenizer[model_name].encode(item[column]))
-            if this_item_tokens > model_context_length:
-                encoded_item = self.tokenizer[model_name](item[column], return_tensors="pt")["input_ids"].tolist()[0]
-                truncated_encoded_item = encoded_item[:model_context_length]
-                unencode_item = self.tokenizer[model_name].decode(truncated_encoded_item)
-                new_batch.append(unencode_item)
-            else:
-                new_batch.append(item[column])
-        results = self.ipfs_embeddings_py.index_knn(new_batch, model_name)
-        return results
-    
-    async def save_to_disk(self, dataset, dst_path, models):
-        self.saved = False
-        while True:
-            await asyncio.sleep(300)
-            empty = True
-            for queue in self.ipfs_embeddings_py.queues.values():
-                if not queue.empty():
-                    empty = False
-
-            if empty == True and self.saved == False:   
-                self.new_dataset.save_to_disk(f"{dst_path}/{dataset.replace("/","---")}.arrow")
-                self.new_dataset.to_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")
-                for model in models:
-                    self.index[model].save_to_disk(f"{dst_path}/{model.replace("/","---")}.arrow")
-                    self.index[model].to_parquet(f"{dst_path}/{model.replace("/","---")}.parquet")
-                self.saved = True
-        return None
-                
     async def main(self, dataset, column, dst_path, models):
         if not os.path.exists(dst_path):
             os.makedirs(dst_path)
