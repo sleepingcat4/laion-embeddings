@@ -77,7 +77,7 @@ if __name__ == "__main__":
             ["dunzhang/stella_en_1.5B_v5", "http://127.0.0.1:8080/embed", 131072]
         ]
     }
-    create_embeddings_batch = create_embeddings_batch(resources, metadata)
+    create_embeddings_batch = create_embeddings(resources, metadata)
     asyncio.run(create_embeddings_batch.main(metadata["dataset"], metadata["column"], metadata["dst_path"], metadata["models"]))    
 
 
