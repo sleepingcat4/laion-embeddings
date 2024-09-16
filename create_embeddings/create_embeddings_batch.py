@@ -90,7 +90,7 @@ class create_embeddings_batch:
     async def save_to_disk(self, dataset, dst_path, models):
         self.saved = False
         while True:
-            await asyncio.sleep(30)
+            await asyncio.sleep(300)
             empty = True
             for queue in self.ipfs_embeddings_py.queues.values():
                 if not queue.empty():
@@ -118,7 +118,7 @@ class create_embeddings_batch:
             self.new_dataset = self.datasets.load_dataset(f"{dst_path}/{dataset}.arrow")
             self.cid_list = self.new_dataset["cid"]
         else:
-            self.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
+            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
 
         for model in models:
             batch_size = 32
@@ -127,11 +127,10 @@ class create_embeddings_batch:
             else:
                 self.index[model] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
                 self.ipfs_embeddings_py.queues[model] = asyncio.Queue(batch_size)
-                consumer_tasks[model] = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queues[model], column, batch_size, model))
+                consumer_tasks[model] = asyncio.create_task(self.ipfs_embeddings_py.consumer(self.ipfs_embeddings_py.queues[model], column, batch_size, model))
 
-        producer_task = asyncio.create_task(self.producer(self.dataset, column, self.ipfs_embeddings_py.queues))        
-        # save_task = asyncio.create_task(self.save_to_disk(dataset, dst_path, models))
-        save_task = asyncio.create_task(self.save_to_disk(dataset, dst_path, models))
+        producer_task = asyncio.create_task(self.ipfs_embeddings_py.producer(self.dataset, column, self.ipfs_embeddings_py.queues))        
+        save_task = asyncio.create_task(self.ipfs_embeddings_py.save_to_disk(dataset, dst_path, models))
         await asyncio.gather(producer_task, save_task, *consumer_tasks.values()) 
         return None
     

@@ -13,7 +13,6 @@ from datasets import load_dataset
 import os
 import sys
 import datasets
-from ipfs_embeddings_py import ipfs_embeddings_py
 import os
 import sys
 import subprocess
@@ -25,8 +24,9 @@ class ipfs_embeddings_py:
         self.ipfs_only_hash = ipfs_only_hash_py(resources, metedata)
         self.https_endpoints = {}
         self.libp2p_endpoints = {}
-        self.datasets = datasets
+        self.datasets = datasets.Dataset
         self.index =  {}
+        self.queues = {}
         self.cid_list = []
         self.cid_queue = iter([])
         self.knn_queue = iter([])
@@ -35,6 +35,12 @@ class ipfs_embeddings_py:
         self.join_column = None
         self.tokenizer = {}
         self.endpoint_status = {}
+        self.new_dataset = {}
+        self.send_batch = self.send_batch
+        self.save_to_disk = self.save_to_disk
+        self.producer = self.producer
+        self.consumer = self.consumer
+        self.async_generator = self.async_generator
         self.add_https_endpoint = self.add_https_endpoint
         self.rm_https_endpoint = self.rm_https_endpoint
         self.queue_index_cid = self.queue_index_cid
@@ -374,7 +380,7 @@ class ipfs_embeddings_py:
         while True:
             await asyncio.sleep(30)
             empty = True
-            for queue in self.ipfs_embeddings_py.queues.values():
+            for queue in self.queues.values():
                 if not queue.empty():
                     empty = False
 
