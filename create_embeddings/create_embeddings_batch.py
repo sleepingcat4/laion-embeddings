@@ -53,7 +53,7 @@ class create_embeddings_batch:
             else:
                 self.cid_list.append(this_cid)
                 self.new_dataset = self.new_dataset.add_item(item)    
-                for queue in queues:
+                for queue in queues.values():
                     await queue.put(item)  # Non-blocking put
 
     async def async_generator(self, iterable):
@@ -95,22 +95,30 @@ class create_embeddings_batch:
         results = self.ipfs_embeddings_py.index_knn(new_batch, model_name)
         return results
     
-    async def save_to_disk(self, dataset, dst_path, model1, model2):
+    async def save_to_disk(self, dataset, dst_path, models):
         self.saved = False
         while True:
-            await asyncio.sleep(300)
-            if self.ipfs_embeddings_py.queue1.empty() and self.ipfs_embeddings_py.queue1.empty() and self.saved == False:   
+            await asyncio.sleep(30)
+            empty = True
+            for queue in self.ipfs_embeddings_py.queues.values():
+                if not queue.empty():
+                    empty = False
+
+            if empty == True and self.saved == False:   
                 self.new_dataset.save_to_disk(f"{dst_path}/{dataset.replace("/","---")}.arrow")
                 self.new_dataset.to_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")
-                self.index[model1].save_to_disk(f"{dst_path}/{model1.replace("/","---")}.arrow")
-                self.index[model1].to_parquet(f"{dst_path}/{model1.replace("/","---")}.parquet")
-                self.index[model2].save_to_disk(f"/{dst_path}/{model2.replace("/","---")}.arrow")
-                self.index[model2].to_parquet(f"{dst_path}/{model2.replace("/","---")}.parquet")
+                for model in models:
+                    self.index[model].save_to_disk(f"{dst_path}/{model.replace("/","---")}.arrow")
+                    self.index[model].to_parquet(f"{dst_path}/{model.replace("/","---")}.parquet")
                 self.saved = True
-
-    async def main(self, dataset, column, dst_path, model1, model2):
+        return None
+                
+    async def main(self, dataset, column, dst_path, models):
         if not os.path.exists(dst_path):
             os.makedirs(dst_path)
+        self.ipfs_embeddings_py.queues = {}
+        consumer_tasks = {}
+        batch_sizes = {}
         self.dataset = load_dataset(dataset, split='train', streaming=True)
         columns = self.dataset.column_names
         columns.append("cid")
@@ -119,33 +127,31 @@ class create_embeddings_batch:
             self.cid_list = self.new_dataset["cid"]
         else:
             self.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
-        if os.path.isfile(f"{dst_path}/{model1.replace("/","---")}.arrow") == True:
-            self.index[model1] = self.datasets.load_dataset(f"{dst_path}/{model1.replace("/","---")}.arrow")
-        else:
-            self.index[model1] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
-        if os.path.isfile(f"{dst_path}/{model2.replace("/","---")}.arrow") == True:
-            self.index[model2] = self.datasets.load_dataset(f"{dst_path}/{model2.replace("/","---")}.arrow")
-        else:
-            self.index[model2] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
-        batch_size_1 = 32
-        batch_size_2 = 32
-        batch_size_3 = 32
-        # batch_size_1 = await self.ipfs_embeddings_py.max_batch_size(model1)
-        # batch_size_2 = await self.ipfs_embeddings_py.max_batch_size(model2)
-        # Create queues for different models
-        self.ipfs_embeddings_py.queue1 = asyncio.Queue(batch_size_1)
-        self.ipfs_embeddings_py.queue2 = asyncio.Queue(batch_size_2)
-        # Start producer and consumers
-        producer_task = asyncio.create_task(self.producer(self.dataset, column, [self.ipfs_embeddings_py.queue1, self.ipfs_embeddings_py.queue2]))
-        consumer_task1 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue1, column, batch_size_1, model1))
-        consumer_task2 = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queue2, column, batch_size_2, model2))
-        save_task = asyncio.create_task(self.save_to_disk(dataset, dst_path, model1, model2))
-        await asyncio.gather(producer_task, consumer_task1, consumer_task2, save_task)
 
+        for model in models:
+            batch_size = 32
+            if os.path.isfile(f"{dst_path}/{model.replace("/","---")}.arrow") == True:
+                self.index[model] = self.datasets.load_dataset(f"{dst_path}/{model.replace("/","---")}.arrow")
+            else:
+                self.index[model] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
+                self.ipfs_embeddings_py.queues[model] = asyncio.Queue(batch_size)
+                consumer_tasks[model] = asyncio.create_task(self.consumer(self.ipfs_embeddings_py.queues[model], column, batch_size, model))
+
+        producer_task = asyncio.create_task(self.producer(self.dataset, column, self.ipfs_embeddings_py.queues))        
+        # save_task = asyncio.create_task(self.save_to_disk(dataset, dst_path, models))
+        save_task = asyncio.create_task(self.save_to_disk(dataset, dst_path, models))
+        await asyncio.gather(producer_task, save_task, *consumer_tasks.values()) 
+        return None
+    
 if __name__ == "__main__":
     metadata = {
         "dataset": "TeraflopAI/Caselaw_Access_Project",
         "column": "text",
+        "models": [
+            "BAAI/bge-m3",
+            "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
+            # "dunzhang/stella_en_1.5B_v5",
+        ],
         "model1": "BAAI/bge-m3",
         "model2": "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
         "model3": "dunzhang/stella_en_1.5B_v5",
@@ -153,11 +159,12 @@ if __name__ == "__main__":
     }
     resources = {
         "https_endpoints": [
-            ["BAAI/bge-m3", "http://62.146.169.111:80/embed", 8192],
+            ["BAAI/bge-m3", "http://62.146.169.111:80/embed", 8191],
             ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 32786],
             ["dunzhang/stella_en_1.5B_v5", "http://127.0.0.1:8080/embed", 131072]
         ]
     }
     create_embeddings_batch = create_embeddings_batch(resources, metadata)
-    asyncio.run(create_embeddings_batch.main(metadata["dataset"], metadata["column"], metadata["dst_path"], metadata["model1"], metadata["model2"]))
-    
+    asyncio.run(create_embeddings_batch.main(metadata["dataset"], metadata["column"], metadata["dst_path"], metadata["models"]))    
+
+
