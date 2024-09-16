@@ -10,7 +10,7 @@ import sys
 import subprocess
 from transformers import AutoTokenizer
 
-class create_embeddings_batch:
+class create_embeddings:
     def __init__(self, resources, metadata):
         self.resources = resources
         self.metadata = metadata
