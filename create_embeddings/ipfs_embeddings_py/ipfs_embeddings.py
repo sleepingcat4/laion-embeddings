@@ -5,6 +5,7 @@ import subprocess
 import os
 import json
 import re
+import random
 class ipfs_embeddings_py:
     def __init__(self, resources, metedata):
         self.multiformats = ipfs_multiformats_py(resources, metedata)
@@ -222,9 +223,9 @@ class ipfs_embeddings_py:
         else:
             this_endpoint = None
             if len(list(filtered_https_endpoints.keys())) > 0:
-                this_endpoint = list(filtered_https_endpoints.keys())[0]
+                this_endpoint = random.choice(list(filtered_https_endpoints.keys()))
             elif len(list(filtered_libp2p_endpoints.keys())) > 0:
-                this_endpoint = list(filtered_libp2p_endpoints.keys())[0]
+                this_endpoint = random.choice(list(filtered_https_endpoints.keys()))
             return this_endpoint
         
     def https_index_cid(self, samples, endpoint):
