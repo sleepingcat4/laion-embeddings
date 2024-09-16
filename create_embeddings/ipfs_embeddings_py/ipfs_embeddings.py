@@ -199,13 +199,13 @@ class ipfs_embeddings_py:
             if isinstance(this_input, str):
                 # remove anything that would cause errors in json parsing
                 # this_input = re.sub(r'[^\x00-\x7F]+', ' ', this_input)  # remove non-ASCII characters
-                this_input = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', ' ', this_input)  # remove control characters
-                this_input = re.sub(r'[\\"]', ' ', this_input)  # remove backslashes and double quotes
+                # this_input = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', ' ', this_input)  # remove control characters
+                # this_input = re.sub(r'[\\"]', ' ', this_input)  # remove backslashes and double quotes
                 ## convert double quotes to escape characters
-                this_input = re.sub(r'["]', '\"', this_input)
-                this_input = re.sub(r'[\b\f\n\r\t]', ' ', this_input)  # remove escape characters
+                # this_input = re.sub(r'["]', '\"', this_input)
+                # this_input = re.sub(r'[\b\f\n\r\t]', ' ', this_input)  # remove escape characters
                 # this_input = re.sub(r'[^a-zA-Z0-9\s]', ' ', this_input)  # remove all special characters
-                this_input = re.sub(r'\s+', ' ', this_input)  # remove extra spaces
+                # this_input = re.sub(r'\s+', ' ', this_input)  # remove extra spaces
                 data["inputs"][input] = this_input
         print(data)
         response = requests.post(endpoint, headers=headers, json=data)
