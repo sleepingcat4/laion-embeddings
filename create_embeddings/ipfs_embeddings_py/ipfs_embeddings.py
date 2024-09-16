@@ -2,16 +2,12 @@ from .ipfs_multiformats import *
 from .ipfs_only_hash import *
 import requests
 import subprocess
-import os
 import json
-import re
 import random
 import datasets
 import asyncio
 from aiohttp import ClientSession
 from datasets import load_dataset
-import os
-import sys
 import datasets
 import os
 import sys
@@ -378,7 +374,7 @@ class ipfs_embeddings_py:
     async def save_to_disk(self, dataset, dst_path, models):
         self.saved = False
         while True:
-            await asyncio.sleep(30)
+            await asyncio.sleep(300)
             empty = True
             for queue in self.queues.values():
                 if not queue.empty():
@@ -392,8 +388,6 @@ class ipfs_embeddings_py:
                     self.index[model].to_parquet(f"{dst_path}/{model.replace("/","---")}.parquet")
                 self.saved = True
         return None
-
-
 
     def status(self):
         return self.endpoint_status
