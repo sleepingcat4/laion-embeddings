@@ -154,7 +154,7 @@ class search_embeddings:
     def search(self, query, n=5):
         if self.qdrant_found == True:
             query_embeddings = self.generate_embeddings(query)
-            vector_search = search_embeddings.search_qdrant(query_embeddings, self.dataset.split("/")[1], n)
+            vector_search = self.search_qdrant(query_embeddings, self.dataset.split("/")[1], n)
         else:
             print("Qdrant failed to start")
             ## Fallback to faiss
