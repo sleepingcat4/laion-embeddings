@@ -26,5 +26,4 @@ def read_item(text: str, q: Union[str, None] = None):
 def load_index(dataset: str, faiss_index: str):
     return vector_search.load_qdrant(dataset, faiss_index)
 
-if __name__ == '__main__':
-    uvicorn.run(app, host="0.0.0.0", port=9999)
+uvicorn.run(app, host="0.0.0.0", port=9999)
