@@ -1,6 +1,6 @@
 import asyncio
 from aiohttp import ClientSession
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 import os
 import sys
 import datasets
@@ -34,26 +34,36 @@ class create_embeddings:
         if not os.path.exists(dst_path):
             os.makedirs(dst_path)
         self.ipfs_embeddings_py.queues = {}
+        self.ipfs_embeddings_py.cid_list = []
+        self.all_cid_list = {}
         consumer_tasks = {}
         batch_sizes = {}
         self.dataset = load_dataset(dataset, split='train', streaming=True)
         columns = self.dataset.column_names
         columns.append("cid")
-        if os.path.isfile(f"{dst_path}/{dataset}.arrow") == True:
-            self.new_dataset = self.datasets.load_dataset(f"{dst_path}/{dataset}.arrow")
-            self.cid_list = self.new_dataset["cid"]
+        if os.path.isfile(f"{dst_path}/{dataset.replace("/","---")}.parquet") == True:
+            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")
+            self.all_cid_list["new_dataset"] = self.ipfs_embeddings_py.new_dataset["cid"]
         else:
             self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
+            self.all_cid_list["new_dataset"] = []
 
         for model in models:
-            batch_size = 32
-            if os.path.isfile(f"{dst_path}/{model.replace("/","---")}.arrow") == True:
-                self.index[model] = self.datasets.load_dataset(f"{dst_path}/{model.replace("/","---")}.arrow")
+            batch_size = await self.ipfs_embeddings_py.max_batch_size(model)
+            if os.path.isfile(f"{dst_path}/{model.replace("/","---")}.parquet") == True:
+                self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_parquet(f"{dst_path}/{model.replace("/","---")}.parquet")
+                self.all_cid_list[model] = self.ipfs_embeddings_py.index[model]["cid"]
             else:
-                self.index[model] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
-                self.ipfs_embeddings_py.queues[model] = asyncio.Queue(batch_size)
-                consumer_tasks[model] = asyncio.create_task(self.ipfs_embeddings_py.consumer(self.ipfs_embeddings_py.queues[model], column, batch_size, model))
+                self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
+                self.all_cid_list[model] = []
+            self.ipfs_embeddings_py.queues[model] = asyncio.Queue(batch_size)
+            consumer_tasks[model] = asyncio.create_task(self.ipfs_embeddings_py.consumer(self.ipfs_embeddings_py.queues[model], column, batch_size, model))
 
+        common_cids = set(self.all_cid_list["new_dataset"])
+        for cid_list in self.all_cid_list.values():
+            common_cids.intersection_update(cid_list)
+        self.cid_list = list(common_cids)
+        self.ipfs_embeddings_py.cid_list = list(common_cids)
         producer_task = asyncio.create_task(self.ipfs_embeddings_py.producer(self.dataset, column, self.ipfs_embeddings_py.queues))        
         save_task = asyncio.create_task(self.ipfs_embeddings_py.save_to_disk(dataset, dst_path, models))
         await asyncio.gather(producer_task, save_task, *consumer_tasks.values()) 
@@ -71,8 +81,8 @@ if __name__ == "__main__":
     }
     resources = {
         "https_endpoints": [
-            ["BAAI/bge-m3", "http://62.146.169.111:80/embed", 8191],
-            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 32768],
+            ["BAAI/bge-m3", "http://62.146.169.111:80/embed", 8190],
+            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 32766],
             ["dunzhang/stella_en_1.5B_v5", "http://127.0.0.1:8080/embed", 131072]
         ]
     }
