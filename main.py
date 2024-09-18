@@ -36,7 +36,7 @@ def read_item(text: str, q: Union[str, None] = None):
 
 @app.post("/search")
 def read_item_post(request: LoadIndexRequest):
-    return vector_search.search(request.search_text)
+    return vector_search.search(request.text)
 
 @app.get("/load/{dataset}/{faiss_index}")
 def load_index(dataset: str, faiss_index: str):
