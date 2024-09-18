@@ -126,8 +126,7 @@ class ipfs_embeddings_py:
                 results.append(this_sample_cid)
         return results
     
-    def max_batch_size(self, model, endpoint=None):
-        print("max_batch_size")
+    async def max_batch_size(self, model, endpoint=None):
         embed_fail = False
         exponent = 1
         batch = []
@@ -136,7 +135,7 @@ class ipfs_embeddings_py:
             while len(batch) < batch_size:
                 batch.append("Hello World")
             try:
-                embeddings = self.index_knn(batch, model, endpoint)
+                embeddings = await self.index_knn(batch, model, endpoint)
                 if not isinstance(embeddings[0], list):
                     raise Exception("Embeddings not returned as list")
                 embed_fail = False
@@ -211,20 +210,13 @@ class ipfs_embeddings_py:
             raise ValueError("samples must be a list")
 
 
-    def make_post_request(self, endpoint, data):
+    async def make_post_request(self, endpoint, data):
         headers = {'Content-Type': 'application/json'}
-        # sanitize data
-        # for input in range(len(data["inputs"])):
-        #     this_input = data["inputs"][input]
-        #     if isinstance(this_input, str):
-        #         data["inputs"][input] = this_input
-        print(data)
-        response = requests.post(endpoint, headers=headers, json=data)
-        return response.json()
+        async with ClientSession() as session:
+            async with session.post(endpoint, headers=headers, json=data) as response:
+                return await response.json()
 
     def choose_endpoint(self, model):
-        print("choose_endpoint")
-        print(model)
         https_endpoints = self.get_https_endpoint(model)
         libp2p_endpoints = self.get_libp2p_endpoint(model)
         filtered_libp2p_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1 and libp2p_endpoints is not None and k in list(libp2p_endpoints.keys())}
@@ -237,6 +229,7 @@ class ipfs_embeddings_py:
                 this_endpoint = random.choice(list(filtered_https_endpoints.keys()))
             elif len(list(filtered_libp2p_endpoints.keys())) > 0:
                 this_endpoint = random.choice(list(filtered_https_endpoints.keys()))
+            print("chosen endpoint for " + model + " is " + this_endpoint)
             return this_endpoint
         
     def https_index_cid(self, samples, endpoint):
@@ -314,6 +307,7 @@ class ipfs_embeddings_py:
                     self.index[model_name] = self.index[model_name].add_item({"cid": batch[i]["cid"], "embedding": results[i]})
                 batch = []  # Clear batch after sending
                 self.saved = False
+            queue.task_done()
         return None
 
     async def producer(self, dataset_stream, column, queues):
@@ -349,23 +343,16 @@ class ipfs_embeddings_py:
                 new_batch.append(unencode_item)
             else:
                 new_batch.append(item[column])
-        results = self.index_knn(new_batch, model_name)
+        results = await self.index_knn(new_batch, model_name)
         return results
 
     async def save_to_disk(self, dataset, dst_path, models):
         self.saved = False
         while True:
-            await asyncio.sleep(300)
-            empty = True
-            for queue in self.queues.values():
-                if not queue.empty():
-                    empty = False
-
-            if empty == True and self.saved == False:   
-                self.new_dataset.save_to_disk(f"{dst_path}/{dataset.replace("/","---")}.arrow")
-                self.new_dataset.to_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")
+            await asyncio.sleep(600)
+            if self.saved == False:
+                self.new_dataset.to_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")   
                 for model in models:
-                    self.index[model].save_to_disk(f"{dst_path}/{model.replace("/","---")}.arrow")
                     self.index[model].to_parquet(f"{dst_path}/{model.replace("/","---")}.parquet")
                 self.saved = True
         return None
@@ -377,18 +364,3 @@ class ipfs_embeddings_py:
         self.endpoint_status[endpoint] = status
         return None
     
-    def test(self):
-        self.https_endpoints("BAAI/bge-m3", "62.146.169.111:80/embed",1)
-        self.https_endpoints("BAAI/bge-m3", "62.146.169.111:8080/embed",1)
-        self.https_endpoints("BAAI/bge-m3", "62.146.168.111:8081/embed",1)
-        test_knn_index = {}
-        test_cid_index = {}
-        test_data = {
-            "test1", "test2", "test3"
-        }
-
-        for data in test_data:
-            test_cid_index = self.index_cid(data)
-            test_knn_index = self.index_knn(data)
-
-        print("test")

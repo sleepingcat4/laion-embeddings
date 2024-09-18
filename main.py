@@ -10,6 +10,13 @@ class LoadIndexRequest(BaseModel):
     dataset: str
     faiss_index: str
 
+class SearchRequest(BaseModel):
+    text: str
+
+class CreateIndexRequest(BaseModel):
+    resources: dict
+    metadata: dict  
+
 metadata = {
     "dataset": "laion/Wikipedia-X-Concat",
     "faiss_index": "laion/Wikipedia-M3",
@@ -22,28 +29,20 @@ resources = {
 vector_search = search_embeddings.search_embeddings(resources, metadata)
 app = FastAPI(port=9999)
 
-@app.post("/create")
-def create_index_post(request: LoadIndexRequest):
-    resources = request.resources
-    metadata = request.metadata
-    index_dataset = create_embeddings.create_embeddings(resources, metadata)
-    index_dataset.main(metadata.dataset, metadata.coulmn, metadata.dst_path, metadata.models)
-    return 
-
-@app.get("/search/{text}")
-def read_item(text: str, q: Union[str, None] = None):
-    return vector_search.search(text)
-
-@app.post("/search")
-def read_item_post(request: LoadIndexRequest):
-    return vector_search.search(request.search_text)
-
-@app.get("/load/{dataset}/{faiss_index}")
-def load_index(dataset: str, faiss_index: str):
-    return vector_search.load_qdrant(dataset, faiss_index)
+# @app.post("/create")
+# def create_index_post(request: CreateIndexRequest):
+#     resources = request.resources
+#     metadata = request.metadata
+#     index_dataset = create_embeddings.create_embeddings(resources, metadata)
+#     index_dataset.main(metadata.dataset, metadata.coulmn, metadata.dst_path, metadata.models)
+#     return None
 
 @app.post("/load")
 def load_index_post(request: LoadIndexRequest):
     return vector_search.load_qdrant(request.dataset, request.faiss_index)
+
+@app.post("/search")
+def search_item_post(request: SearchRequest):
+    return vector_search.search(request.text)
 
 uvicorn.run(app, host="0.0.0.0", port=9999)
