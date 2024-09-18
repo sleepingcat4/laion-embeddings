@@ -57,7 +57,6 @@ class create_embeddings:
         producer_task = asyncio.create_task(self.ipfs_embeddings_py.producer(self.dataset, column, self.ipfs_embeddings_py.queues))        
         save_task = asyncio.create_task(self.ipfs_embeddings_py.save_to_disk(dataset, dst_path, models))
         await asyncio.gather(producer_task, save_task, *consumer_tasks.values()) 
-        return None
     
 if __name__ == "__main__":
     metadata = {
@@ -73,7 +72,7 @@ if __name__ == "__main__":
     resources = {
         "https_endpoints": [
             ["BAAI/bge-m3", "http://62.146.169.111:80/embed", 8191],
-            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 32786],
+            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 32768],
             ["dunzhang/stella_en_1.5B_v5", "http://127.0.0.1:8080/embed", 131072]
         ]
     }
