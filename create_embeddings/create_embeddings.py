@@ -41,8 +41,8 @@ class create_embeddings:
         self.dataset = load_dataset(dataset, split='train', streaming=True)
         columns = self.dataset.column_names
         columns.append("cid")
-        if os.path.isfile(f"{dst_path}/{dataset.replace("/","---")}.parquet") == True:
-            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")
+        if os.path.isfile("{dst_path}/"+ dataset.replace("/","---") + "}.parquet") == True:
+            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_parquet("{dst_path}/" + dataset.replace("/","---") + ".parquet",  encoding="utf-8")
             self.all_cid_list["new_dataset"] = self.ipfs_embeddings_py.new_dataset["cid"]
         else:
             self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
@@ -50,8 +50,8 @@ class create_embeddings:
 
         for model in models:
             batch_size = await self.ipfs_embeddings_py.max_batch_size(model)
-            if os.path.isfile(f"{dst_path}/{model.replace("/","---")}.parquet") == True:
-                self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_parquet(f"{dst_path}/{model.replace("/","---")}.parquet")
+            if os.path.isfile("{dst_path}/" + model.replace("/","---") + ".parquet") == True:
+                self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_parquet("{dst_path}/" + model.replace("/","---") + ".parquet",  encoding="utf-8")
                 self.all_cid_list[model] = self.ipfs_embeddings_py.index[model]["cid"]
             else:
                 self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
