@@ -350,18 +350,10 @@ class ipfs_embeddings_py:
         self.saved = False
         while True:
             await asyncio.sleep(600)
-            if self.saved == False:   
-                self.new_dataset_data = self.new_dataset.to_dict()
-                self.save_new_dataset = datasets.Dataset.from_dict(self.new_dataset_data)
-                self.save_new_dataset.to_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")
-                self.save_new_dataset = None
-                self.new_dataset_data = None
+            if self.saved == False:
+                self.new_dataset.to_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")   
                 for model in models:
-                    self.new_dataset_data = self.index[model].to_dict()
-                    self.save_new_dataset = datasets.Dataset.from_dict(self.new_dataset_data)
-                    self.save_new_dataset.to_parquet(f"{dst_path}/{model.replace("/","---")}.parquet")
-                    self.save_new_dataset = None
-                    self.new_dataset_data = None
+                    self.index[model].to_parquet(f"{dst_path}/{model.replace("/","---")}.parquet")
                 self.saved = True
         return None
 
