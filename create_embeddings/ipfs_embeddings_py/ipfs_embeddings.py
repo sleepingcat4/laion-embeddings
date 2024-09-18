@@ -349,7 +349,7 @@ class ipfs_embeddings_py:
     async def save_to_disk(self, dataset, dst_path, models):
         self.saved = False
         while True:
-            await asyncio.sleep(300)
+            await asyncio.sleep(600)
             if self.saved == False:   
                 self.new_dataset_data = self.new_dataset.to_dict()
                 self.save_new_dataset = datasets.Dataset.from_dict(self.new_dataset_data)
