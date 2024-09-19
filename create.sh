@@ -15,6 +15,8 @@ resources='{
     ]
 }'
 
+# model name, endpoint name, context length
+
 curl 127.0.0.1:9999/create \
     -X POST \
     -d "{\"resources\": $resources, \"metadata\": $metadata}" \
