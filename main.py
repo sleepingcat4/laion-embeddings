@@ -29,16 +29,21 @@ resources = {
 vector_search = search_embeddings.search_embeddings(resources, metadata)
 app = FastAPI(port=9999)
 
-# @app.post("/create")
-# def create_index_post(request: CreateIndexRequest):
-#     resources = request.resources
-#     metadata = request.metadata
-#     index_dataset = create_embeddings.create_embeddings(resources, metadata)
-#     index_dataset.main(metadata.dataset, metadata.coulmn, metadata.dst_path, metadata.models)
-#     return None
+def create_index_task(resources: dict, metadata: dict):
+    index_dataset = create_embeddings.create_embeddings(resources, metadata)
+    index_dataset.main(metadata.dataset, metadata.coulmn, metadata.dst_path, metadata.models)
+    return None
 
+@app.post("/create")
+def create_index_post(request: CreateIndexRequest):
+    resources = request.resources
+    metadata = request.metadata
+    create_index_task(resources, metadata)
+    return {"message": "Index creation started in the background"}
 
 async def load_index_task(dataset: str, faiss_index: str):
+    vector_search = search_embeddings.search_embeddings(resources, metadata)
+
     await vector_search.load_qdrant(dataset, faiss_index)
     return None
 
