@@ -1,6 +1,6 @@
 from typing import Union
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from search_embeddings import search_embeddings
 from create_embeddings import create_embeddings
 
@@ -37,9 +37,15 @@ app = FastAPI(port=9999)
 #     index_dataset.main(metadata.dataset, metadata.coulmn, metadata.dst_path, metadata.models)
 #     return None
 
+
+async def load_index_task(dataset: str, faiss_index: str):
+    await vector_search.load_qdrant(dataset, faiss_index)
+    return None
+
 @app.post("/load")
-def load_index_post(request: LoadIndexRequest):
-    return vector_search.load_qdrant(request.dataset, request.faiss_index)
+def load_index_post(request: LoadIndexRequest, background_tasks: BackgroundTasks):
+    background_tasks.add_task(load_index_task, request.dataset, request.faiss_index)
+    return {"message": "Index loading started in the background"}
 
 @app.post("/search")
 def search_item_post(request: SearchRequest):
