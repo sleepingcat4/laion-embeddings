@@ -351,9 +351,9 @@ class ipfs_embeddings_py:
         while True:
             await asyncio.sleep(600)
             if self.saved == False:
-                self.new_dataset.to_parquet(f"{dst_path}/{dataset.replace("/","---")}.parquet")   
+                self.new_dataset.to_parquet(dst_path+"/"+dataset.replace("/","---")+".parquet")   
                 for model in models:
-                    self.index[model].to_parquet(f"{dst_path}/{model.replace("/","---")}.parquet")
+                    self.index[model].to_parquet(dst_path+"/"+model.replace("/","---")+".parquet")
                 self.saved = True
         return None
 

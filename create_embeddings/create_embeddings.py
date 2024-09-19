@@ -74,7 +74,7 @@ if __name__ == "__main__":
         "column": "text",
         "models": [
             "BAAI/bge-m3",
-            "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
+            "v",
             # "dunzhang/stella_en_1.5B_v5",
         ],
         "dst_path": "/storage/teraflopai"
