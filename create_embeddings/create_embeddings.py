@@ -41,8 +41,9 @@ class create_embeddings:
         self.dataset = load_dataset(dataset, split='train', streaming=True)
         columns = self.dataset.column_names
         columns.append("cid")
-        if os.path.isfile("{dst_path}/"+ dataset.replace("/","---") + "}.parquet") == True:
-            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_parquet("{dst_path}/" + dataset.replace("/","---") + ".parquet",  encoding="utf-8")
+        new_dataset_dst_path = dst_path+"/"+ dataset.replace("/","---") + ".parquet"
+        if os.path.isfile(new_dataset_dst_path) == True:
+            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_parquet(new_dataset_dst_path)
             self.all_cid_list["new_dataset"] = self.ipfs_embeddings_py.new_dataset["cid"]
         else:
             self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
@@ -50,8 +51,9 @@ class create_embeddings:
 
         for model in models:
             batch_size = await self.ipfs_embeddings_py.max_batch_size(model)
-            if os.path.isfile("{dst_path}/" + model.replace("/","---") + ".parquet") == True:
-                self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_parquet("{dst_path}/" + model.replace("/","---") + ".parquet",  encoding="utf-8")
+            model_dst_path = dst_path + "/" + model.replace("/","---") + ".parquet"
+            if os.path.isfile(model_dst_path) == True:
+                self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_parquet(model_dst_path)
                 self.all_cid_list[model] = self.ipfs_embeddings_py.index[model]["cid"]
             else:
                 self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
@@ -81,8 +83,8 @@ if __name__ == "__main__":
     }
     resources = {
         "https_endpoints": [
-            ["BAAI/bge-m3", "http://127.0.0.1:8080/embed", 8188],
-            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8081/embed", 32764],
+            ["BAAI/bge-m3", "http://127.0.0.1:8081/embed", 9999],
+            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 32768],
             ["dunzhang/stella_en_1.5B_v5", "http://127.0.0.1:8082/embed", 131072]
         ]
     }
