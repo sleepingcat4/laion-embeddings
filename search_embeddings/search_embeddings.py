@@ -114,9 +114,15 @@ class search_embeddings:
             )
         
         print("Data successfully ingested into Qdrant")
-
         print("All data successfully ingested into Qdrant from huggingface dataset")
         return True
+
+    def rm_cache(self):
+        homedir = os.path.expanduser("~")
+        cache_dir = homedir + "/.cache/huggingface/datasets/"
+        cache_dir = os.path.expanduser(cache_dir)
+        os.system("rm -rf " + cache_dir)
+        return None
 
     def generate_embeddings(self, query):
         if isinstance(query, str):
