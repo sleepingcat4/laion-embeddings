@@ -1,5 +1,5 @@
 # Use the NVIDIA CUDA base image for Ubuntu
-FROM nvidia/cuda:12.6.1-devel-ubuntu24.04
+FROM nvidia/cuda:12.4.0-devel-ubuntu22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -8,6 +8,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    nc \
+    sudo \
     wget \
     git \
     python3 \
@@ -21,7 +23,7 @@ WORKDIR /home/devel/laion-embeddings
 COPY . .
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install  --no-cache-dir -r requirements.txt
 
 # Set the entrypoint
 ENTRYPOINT ["python3", "-m", "fastapi", "run" , "main.py"]
