@@ -84,7 +84,8 @@ class search_embeddings:
         if (client.collection_exists(collection_name)):
             print("Collection already exists")
             return False
-        else:        
+        else:
+            print("Creating collection")        
             client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=embedding_size, distance=Distance.COSINE),
@@ -99,6 +100,7 @@ class search_embeddings:
             end = min(start + chunk_size, knn_index_length)
             chunk_df = self.joined_dataset.iloc[start:end]
             points = []
+            print(f"Processing chunk {start}:{end}")
             for index, row in chunk_df.iterrows():
                 text = row["Concat Abstract"]
                 embedding = row["Embeddings"][0]
