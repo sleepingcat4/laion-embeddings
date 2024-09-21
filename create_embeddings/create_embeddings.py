@@ -25,8 +25,8 @@ class create_embeddings:
             for endpoint in resources["https_endpoints"]:
                 self.ipfs_embeddings_py.add_https_endpoint(endpoint[0], endpoint[1], endpoint[2])
         else:
-            self.ipfs_embeddings_py.add_https_endpoint("BAAI/bge-m3", "http://62.146.169.111:80/embed", 8192)
-            self.ipfs_embeddings_py.add_https_endpoint("Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://62.146.169.111:80/embed", 32768 )
+            self.ipfs_embeddings_py.add_https_endpoint("BAAI/bge-m3", "http://62.146.169.111:80/embed-small", 8192)
+            self.ipfs_embeddings_py.add_https_endpoint("Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://62.146.169.111:80/embed-medium", 32768 )
         self.join_column = None
         self.tokenizer = {}
 
@@ -83,9 +83,18 @@ if __name__ == "__main__":
     }
     resources = {
         "https_endpoints": [
-            ["BAAI/bge-m3", "http://127.0.0.1:8081/embed", 9999],
-            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://127.0.0.1:8080/embed", 32768],
-            ["dunzhang/stella_en_1.5B_v5", "http://127.0.0.1:8082/embed", 131072]
+            ["BAAI/bge-m3", "http://62.146.169.111:8080/embed-small", 8192],
+            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://62.146.169.111:8080/embed-medium", 32768],
+            ["dunzhang/stella_en_1.5B_v5", "http://62.146.169.111:8080/embed-large", 131072],
+            ["BAAI/bge-m3", "http://62.146.169.111:8081/embed-small", 8192],
+            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://62.146.169.111:8081/embed-medium", 32768],
+            ["dunzhang/stella_en_1.5B_v5", "http://62.146.169.111:8081/embed-large", 131072],
+            ["BAAI/bge-m3", "http://62.146.169.111:8082/embed-small", 8192],
+            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://62.146.169.111:8082/embed-medium", 32768],
+            ["dunzhang/stella_en_1.5B_v5", "http://62.146.169.111:8082/embed-large", 131072],
+            ["BAAI/bge-m3", "http://62.146.169.111:8083/embed-small", 8192],
+            ["Alibaba-NLP/gte-Qwen2-1.5B-instruct", "http://62.146.169.111:8083/embed-medium", 32768],
+            ["dunzhang/stella_en_1.5B_v5", "http://62.146.169.111:8083/embed-large", 131072],
         ]
     }
     create_embeddings_batch = create_embeddings(resources, metadata)
