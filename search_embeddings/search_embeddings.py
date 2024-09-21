@@ -53,7 +53,9 @@ class search_embeddings:
         return None
     
     async def join_datasets(self, dataset, knn_index, join_column):
-
+        async for dataset_item, knn_index_item in zip(dataset, knn_index):
+            dataset_item[join_column] = knn_index_item[join_column]
+            yield dataset_item
         return None
     
     async def load_qdrant_new(self, dataset, knn_index, dataset_split= None, knn_index_split=None):
@@ -74,7 +76,53 @@ class search_embeddings:
         self.joined_dataset = self.join_datasets(self.dataset, self.knn_index, self.join_column)
         return None
 
-    
+    async def ingest_qdrant_new(self):
+        collection_name = self.dataset_name.split("/")[1]
+        embedding_size = len(self.knn_index[list(self.knn_index.keys())[0]].select([0])['Embeddings'][0][0])
+        client = QdrantClient(url="http://localhost:6333")
+        # Define the collection name
+        collection_name = self.dataset_name.split("/")[1]
+        embedding_size = len(self.knn_index[list(self.knn_index.keys())[0]].select([0])['Embeddings'][0][0])
+
+        if (client.collection_exists(collection_name)):
+            print("Collection already exists")
+            return False
+        else:
+            print("Creating collection")        
+            client.create_collection(
+                collection_name=collection_name,
+                vectors_config=VectorParams(size=embedding_size, distance=Distance.COSINE),
+            )
+
+        # Chunk size for generating points
+        chunk_size = 100
+        knn_index_length = self.joined_dataset.shape[0]# Get the number of rows in the dataset
+        # Prepare the points to be inserted in chunks
+
+        for start in range(0, knn_index_length, chunk_size):
+            end = min(start + chunk_size, knn_index_length)
+            chunk_df = self.joined_dataset.iloc[start:end]
+            points = []
+            print(f"Processing chunk {start}:{end}")
+            for index, row in chunk_df.iterrows():
+                text = row["Concat Abstract"]
+                embedding = row["Embeddings"][0]
+                points.append(models.PointStruct(
+                    id=index,
+                    vector=embedding.tolist() if embedding is not None else None,  # Convert embedding to list if not None
+                    payload={"text": text}
+                ))
+
+            client.upsert(
+                collection_name=collection_name,
+                points=points
+            )
+        
+        print("Data successfully ingested into Qdrant")
+        print("All data successfully ingested into Qdrant from huggingface dataset")
+        return True
+        
+
     async def load_qdrant(self, dataset, knn_index):
         self.knn_index = self.datasets.load_dataset(knn_index, streaming=True)
         self.dataset = self.datasets.load_dataset(dataset, streaming=True)
