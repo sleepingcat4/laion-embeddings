@@ -131,6 +131,8 @@ class ipfs_embeddings_py:
         exponent = 1
         batch = []
         batch_size = 2**exponent
+        if endpoint is None:
+            endpoint = self.choose_endpoint(model)
         while embed_fail == False:
             while len(batch) < batch_size:
                 batch.append("Hello World")
@@ -144,17 +146,18 @@ class ipfs_embeddings_py:
             except:
                 embed_fail = True
                 pass
+        self.endpoint_status[endpoint] = 2**(exponent-1)
         return 2**(exponent-1)
     
     def index_knn(self, samples, model, chosen_endpoint=None):
         knn_stack = []
+        if chosen_endpoint is None:
+            chosen_endpoint = self.choose_endpoint(model)
         if type(samples) is None:
             raise ValueError("samples must be a list")
         if type(samples) is str:
             samples = [samples]
         if type(samples) is iter:
-            if chosen_endpoint is None:
-                chosen_endpoint = self.choose_endpoint(model)
             this_query = {"inputs": samples}
             try:
                 query_response = self.make_post_request(chosen_endpoint, this_query)
@@ -166,8 +169,6 @@ class ipfs_embeddings_py:
                 knn_stack = query_response
             pass
         if type(samples) is list:
-            if chosen_endpoint is None:
-                chosen_endpoint = self.choose_endpoint(model)
             this_query = {"inputs": samples}
             try:
                 query_response = self.make_post_request(chosen_endpoint, this_query)
@@ -180,41 +181,40 @@ class ipfs_embeddings_py:
             pass
         return knn_stack
     
-    def queue_index_cid(self, samples):
-        if type(samples) is None:
-            raise ValueError("samples must be a list")
-        if isinstance(samples, str):
-            samples = [samples]
-            self.knn_queue = iter(list(samples))
-            return True
-        if isinstance(samples, list):
-            self.knn_queue = list(self.knn_queue)
-            for this_sample in samples:
-                self.knn_queue.append(this_sample)
-            self.knn_queue = iter(self.knn_queue)
-            return True
-        else:
-            raise ValueError("samples must be a list")
+    # def queue_index_cid(self, samples):
+    #     if type(samples) is None:
+    #         raise ValueError("samples must be a list")
+    #     if isinstance(samples, str):
+    #         samples = [samples]
+    #         self.knn_queue = iter(list(samples))
+    #         return True
+    #     if isinstance(samples, list):
+    #         self.knn_queue = list(self.knn_queue)
+    #         for this_sample in samples:
+    #             self.knn_queue.append(this_sample)
+    #         self.knn_queue = iter(self.knn_queue)
+    #         return True
+    #     else:
+    #         raise ValueError("samples must be a list")
     
-    def queue_index_knn(self, samples):
-        print("queue_index_knn")
-        print(samples)
-        print(type(samples))
-        if samples is None:
-            raise ValueError("samples must be a list")
-        if isinstance(samples, str):
-            samples = [samples]
-            self.knn_queue = iter(list(samples))
-            return True
-        if isinstance(samples, list):
-            self.knn_queue = list(self.knn_queue)
-            for this_sample in samples:
-                self.knn_queue.append(this_sample)
-            self.knn_queue = iter(self.knn_queue)
-            return True
-        else:
-            raise ValueError("samples must be a list")
-
+    # def queue_index_knn(self, samples):
+    #     print("queue_index_knn")
+    #     print(samples)
+    #     print(type(samples))
+    #     if samples is None:
+    #         raise ValueError("samples must be a list")
+    #     if isinstance(samples, str):
+    #         samples = [samples]
+    #         self.knn_queue = iter(list(samples))
+    #         return True
+    #     if isinstance(samples, list):
+    #         self.knn_queue = list(self.knn_queue)
+    #         for this_sample in samples:
+    #             self.knn_queue.append(this_sample)
+    #         self.knn_queue = iter(self.knn_queue)
+    #         return True
+    #     else:
+    #         raise ValueError("samples must be a list")
 
     async def make_post_request(self, endpoint, data):
         headers = {'Content-Type': 'application/json'}
@@ -227,8 +227,8 @@ class ipfs_embeddings_py:
     def choose_endpoint(self, model):
         https_endpoints = self.get_https_endpoint(model)
         libp2p_endpoints = self.get_libp2p_endpoint(model)
-        filtered_libp2p_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1 and libp2p_endpoints is not None and k in list(libp2p_endpoints.keys())}
-        filtered_https_endpoints = {k: v for k, v in self.endpoint_status.items() if v == 1 and https_endpoints is not None and k in list(https_endpoints.keys())}
+        filtered_libp2p_endpoints = {k: v for k, v in self.endpoint_status.items() if v >= 1 and libp2p_endpoints is not None and k in list(libp2p_endpoints.keys())}
+        filtered_https_endpoints = {k: v for k, v in self.endpoint_status.items() if v >= 1 and https_endpoints is not None and k in list(https_endpoints.keys())}
         if ( not filtered_https_endpoints and not filtered_libp2p_endpoints):
             return None
         else:
@@ -240,15 +240,15 @@ class ipfs_embeddings_py:
             print("chosen endpoint for " + model + " is " + this_endpoint)
             return this_endpoint
         
-    def https_index_cid(self, samples, endpoint):
-        endpoint_chunk_size = self.https_endpoints[endpoint]
-        all_chunk = []
-        this_chunk = []
-        for i in range(samples):
-            self
-            ## request endpoint
-            pass
-        return None
+    # def https_index_cid(self, samples, endpoint):
+    #     endpoint_chunk_size = self.https_endpoints[endpoint]
+    #     all_chunk = []
+    #     this_chunk = []
+    #     for i in range(samples):
+    #         self
+    #         ## request endpoint
+    #         pass
+    #     return None
     
     def https_index_knn(self, selected_endpoint, model):
         batch_size = 0
@@ -273,29 +273,29 @@ class ipfs_embeddings_py:
                     return endpoint
         return None
 
-    def pop_index_cid(self, number):
-        results = []
-        if number > len(self.cid_queue):
-            raise ValueError("number is greater than the queue size")
-        if number <= 0:
-            raise ValueError("number must be greater than 0")
-        for i in range(number):
-            results.push(self.cid_queue.pop())
-            i += 1
-        return results
+    # def pop_index_cid(self, number):
+    #     results = []
+    #     if number > len(self.cid_queue):
+    #         raise ValueError("number is greater than the queue size")
+    #     if number <= 0:
+    #         raise ValueError("number must be greater than 0")
+    #     for i in range(number):
+    #         results.push(self.cid_queue.pop())
+    #         i += 1
+    #     return results
     
-    def pop_index_knn(self, number):
-        results = []
-        knn_queue_list = list(self.knn_queue)
-        if number > len(knn_queue_list):
-            raise ValueError("number is greater than the queue size")
-        if number <= 0:
-            raise ValueError("number must be greater than 0")
-        for i in range(number):
-            results.append(knn_queue_list.pop())
-            i += 1
-        self.knn_queue = iter(knn_queue_list)
-        return results
+    # def pop_index_knn(self, number):
+    #     results = []
+    #     knn_queue_list = list(self.knn_queue)
+    #     if number > len(knn_queue_list):
+    #         raise ValueError("number is greater than the queue size")
+    #     if number <= 0:
+    #         raise ValueError("number must be greater than 0")
+    #     for i in range(number):
+    #         results.append(knn_queue_list.pop())
+    #         i += 1
+    #     self.knn_queue = iter(knn_queue_list)
+    #     return results
 
     async def async_generator(self, iterable):
         for item in iterable:
@@ -329,7 +329,7 @@ class ipfs_embeddings_py:
             if this_cid in self.cid_list:
                 pass
             else:
-                self.cid_list.append(this_cid)
+                self.cid_list.add(this_cid)
                 self.new_dataset = self.new_dataset.add_item(item)    
                 for queue in queues.values():
                     await queue.put(item)  # Non-blocking put
@@ -342,7 +342,7 @@ class ipfs_embeddings_py:
         new_batch = []
         for item in batch:
             if model_name not in self.tokenizer.keys():
-                self.tokenizer[model_name] = AutoTokenizer.from_pretrained(model_name)
+                self.tokenizer[model_name] = AutoTokenizer.from_pretrained(model_name, device='cpu')
             this_item_tokens = len(self.tokenizer[model_name].encode(item[column]))
             if this_item_tokens > model_context_length:
                 encoded_item = self.tokenizer[model_name](item[column], return_tensors="pt")["input_ids"].tolist()[0]
@@ -374,6 +374,9 @@ class ipfs_embeddings_py:
                                 new_batch[index] = item
                             results = await self.index_knn(new_batch, model_name, endpoint)
                             return results
+            elif error.status == 504:
+                self.endpoint_status[endpoint] = 0
+                return await self.send_batch(batch, column, model_name)
             raise Exception("error: " + error_content["error"])
         else:
             return results
@@ -399,40 +402,41 @@ class ipfs_embeddings_py:
     async def index_dataset(self, dataset, column, dst_path, models):
         if not os.path.exists(dst_path):
             os.makedirs(dst_path)
-        self.ipfs_embeddings_py.queues = {}
-        self.ipfs_embeddings_py.cid_list = []
+        self.queues = {}
+        self.cid_list = []
         self.all_cid_list = {}
         consumer_tasks = {}
         batch_sizes = {}
-        self.dataset = load_dataset(dataset, split='train', streaming=True)
+        self.dataset = load_dataset(dataset, split='train', streaming=True).shuffle(seed=42)
         columns = self.dataset.column_names
         columns.append("cid")
         new_dataset_dst_path = dst_path+"/"+ dataset.replace("/","---") + ".parquet"
         if os.path.isfile(new_dataset_dst_path) == True:
-            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_parquet(new_dataset_dst_path)
-            self.all_cid_list["new_dataset"] = self.ipfs_embeddings_py.new_dataset["cid"]
+            self.new_dataset = datasets.Dataset.from_parquet(new_dataset_dst_path)
+            self.all_cid_list["new_dataset"] = self.new_dataset["cid"]
         else:
-            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
+            self.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
             self.all_cid_list["new_dataset"] = []
 
         for model in models:
-            batch_size = await self.ipfs_embeddings_py.max_batch_size(model)
+            batch_size = await self.max_batch_size(model)
             model_dst_path = dst_path + "/" + model.replace("/","---") + ".parquet"
             if os.path.isfile(model_dst_path) == True:
-                self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_parquet(model_dst_path)
-                self.all_cid_list[model] = self.ipfs_embeddings_py.index[model]["cid"]
+                self.index[model] = datasets.Dataset.from_parquet(model_dst_path)
+                self.all_cid_list[model] = self.index[model]["cid"]
             else:
-                self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
+                self.index[model] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
                 self.all_cid_list[model] = []
-            self.ipfs_embeddings_py.queues[model] = asyncio.Queue(batch_size)
-            consumer_tasks[model] = asyncio.create_task(self.ipfs_embeddings_py.consumer(self.ipfs_embeddings_py.queues[model], column, batch_size, model))
+            self.queues[model] = asyncio.Queue(batch_size)
+            consumer_tasks[model] = asyncio.create_task(self.consumer(self.queues[model], column, batch_size, model))
 
         common_cids = set(self.all_cid_list["new_dataset"])
         for cid_list in self.all_cid_list.values():
             common_cids.intersection_update(cid_list)
         self.cid_list = list(common_cids)
-        self.ipfs_embeddings_py.cid_list = list(common_cids)
-        producer_task = asyncio.create_task(self.ipfs_embeddings_py.producer(self.dataset, column, self.ipfs_embeddings_py.queues))        
-        save_task = asyncio.create_task(self.ipfs_embeddings_py.save_to_disk(dataset, dst_path, models))
-        await asyncio.gather(producer_task, save_task, *consumer_tasks.values()) 
+        self.cid_list = list(common_cids)
+        producer_task = asyncio.create_task(self.producer(self.dataset, column, self.queues))        
+        save_task = asyncio.create_task(self.save_to_disk(dataset, dst_path, models))
+        await asyncio.gather(producer_task, save_task, *consumer_tasks.values())
+        return None 
     

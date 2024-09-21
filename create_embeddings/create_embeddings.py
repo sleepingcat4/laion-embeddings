@@ -30,7 +30,7 @@ class create_embeddings:
         self.join_column = None
         self.tokenizer = {}
 
-    async def main(self, dataset, column, dst_path, models):
+    async def index_dataset_bak(self, dataset, column, dst_path, models):
         if not os.path.exists(dst_path):
             os.makedirs(dst_path)
         self.ipfs_embeddings_py.queues = {}
@@ -38,12 +38,12 @@ class create_embeddings:
         self.all_cid_list = {}
         consumer_tasks = {}
         batch_sizes = {}
-        self.dataset = load_dataset(dataset, split='train', streaming=True)
+        self.dataset = load_dataset(dataset, split='train', streaming=True).shuffle(seed=42)
         columns = self.dataset.column_names
         columns.append("cid")
         new_dataset_dst_path = dst_path+"/"+ dataset.replace("/","---") + ".parquet"
         if os.path.isfile(new_dataset_dst_path) == True:
-            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_parquet(new_dataset_dst_path)
+            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_parquet(new_dataset_dst_path).shuffle(seed=42)
             self.all_cid_list["new_dataset"] = self.ipfs_embeddings_py.new_dataset["cid"]
         else:
             self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
@@ -69,6 +69,47 @@ class create_embeddings:
         producer_task = asyncio.create_task(self.ipfs_embeddings_py.producer(self.dataset, column, self.ipfs_embeddings_py.queues))        
         save_task = asyncio.create_task(self.ipfs_embeddings_py.save_to_disk(dataset, dst_path, models))
         await asyncio.gather(producer_task, save_task, *consumer_tasks.values()) 
+
+
+    async def main(self, dataset, column, dst_path, models):
+        if not os.path.exists(dst_path):
+            os.makedirs(dst_path)
+        self.ipfs_embeddings_py.queues = {}
+        self.ipfs_embeddings_py.cid_list = []
+        self.all_cid_list = {}
+        consumer_tasks = {}
+        batch_sizes = {}
+        self.dataset = load_dataset(dataset, split='train', streaming=True).shuffle(seed=42)
+        columns = self.dataset.column_names
+        columns.append("cid")
+        new_dataset_dst_path = dst_path+"/"+ dataset.replace("/","---") + ".parquet"
+        if os.path.isfile(new_dataset_dst_path) == True:
+            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_parquet(new_dataset_dst_path)
+            self.all_cid_list["new_dataset"] = self.ipfs_embeddings_py.new_dataset["cid"]
+        else:
+            self.ipfs_embeddings_py.new_dataset = datasets.Dataset.from_dict({key: [] for key in columns })
+            self.all_cid_list["new_dataset"] = []
+
+        for model in models:
+            batch_size = await self.ipfs_embeddings_py.max_batch_size(model)
+            model_dst_path = dst_path + "/" + model.replace("/","---") + ".parquet"
+            if os.path.isfile(model_dst_path) == True:
+                self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_parquet(model_dst_path)
+                self.all_cid_list[model] = self.ipfs_embeddings_py.index[model]["cid"]
+            else:
+                self.ipfs_embeddings_py.index[model] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
+                self.all_cid_list[model] = []
+            self.ipfs_embeddings_py.queues[model] = asyncio.Queue(batch_size)
+            consumer_tasks[model] = asyncio.create_task(self.ipfs_embeddings_py.consumer(self.ipfs_embeddings_py.queues[model], column, batch_size, model))
+
+        common_cids = set(self.all_cid_list["new_dataset"])
+        for cid_list in self.all_cid_list.values():
+            common_cids.intersection_update(cid_list)
+        self.cid_list = common_cids
+        self.ipfs_embeddings_py.cid_list = common_cids
+        producer_task = asyncio.create_task(self.ipfs_embeddings_py.producer(self.dataset, column, self.ipfs_embeddings_py.queues))        
+        save_task = asyncio.create_task(self.ipfs_embeddings_py.save_to_disk(dataset, dst_path, models))
+        await asyncio.gather(producer_task, save_task, *consumer_tasks.values()) 
     
 if __name__ == "__main__":
     metadata = {
@@ -77,7 +118,7 @@ if __name__ == "__main__":
         "models": [
             "BAAI/bge-m3",
             "Alibaba-NLP/gte-Qwen2-1.5B-instruct",
-            "dunzhang/stella_en_1.5B_v5",
+            # "dunzhang/stella_en_1.5B_v5",
         ],
         "dst_path": "/storage/teraflopai"
     }
