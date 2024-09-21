@@ -52,6 +52,10 @@ class search_embeddings:
         os.system(kill_qdrant_cmd)
         return None
     
+    async def load_qdrant_new(self, dataset, knn_index):
+        return None
+
+    
     async def load_qdrant(self, dataset, knn_index):
         self.knn_index = self.datasets.load_dataset(knn_index, streaming=True)
         self.dataset = self.datasets.load_dataset(dataset, streaming=True)
