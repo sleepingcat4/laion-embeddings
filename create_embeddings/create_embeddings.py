@@ -9,6 +9,7 @@ import os
 import sys
 import subprocess
 from transformers import AutoTokenizer
+import random
 
 class create_embeddings:
     def __init__(self, resources, metadata):
@@ -79,7 +80,7 @@ class create_embeddings:
         self.all_cid_list = {}
         consumer_tasks = {}
         batch_sizes = {}
-        self.dataset = load_dataset(dataset, split='train', streaming=True).shuffle(seed=42)
+        self.dataset = load_dataset(dataset, split='train', streaming=True).shuffle(seed=random.randint(0,65536))
         columns = self.dataset.column_names
         columns.append("cid")
         new_dataset_dst_path = dst_path+"/"+ dataset.replace("/","---") + ".parquet"

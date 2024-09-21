@@ -53,8 +53,8 @@ class search_embeddings:
         return None
     
     async def load_qdrant(self, dataset, knn_index):
-        self.knn_index = self.datasets.load_dataset(knn_index)
-        self.dataset = self.datasets.load_dataset(dataset)
+        self.knn_index = self.datasets.load_dataset(knn_index, streaming=True)
+        self.dataset = self.datasets.load_dataset(dataset, streaming=True)
         self.dataset_name = dataset
         self.knn_index_name = knn_index
         knn_columns = self.knn_index.column_names[list(self.knn_index.column_names.keys())[0]]

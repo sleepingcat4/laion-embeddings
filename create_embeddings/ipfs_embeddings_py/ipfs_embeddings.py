@@ -39,11 +39,11 @@ class ipfs_embeddings_py:
         self.async_generator = self.async_generator
         self.add_https_endpoint = self.add_https_endpoint
         self.rm_https_endpoint = self.rm_https_endpoint
-        self.queue_index_cid = self.queue_index_cid
-        self.queue_index_knn = self.queue_index_knn
+        # self.queue_index_cid = self.queue_index_cid
+        # self.queue_index_knn = self.queue_index_knn
         self.choose_endpoint = self.choose_endpoint
-        self.pop_index_knn = self.pop_index_knn
-        self.pop_index_cid = self.pop_index_cid
+        # self.pop_index_knn = self.pop_index_knn
+        # self.pop_index_cid = self.pop_index_cid
         self.max_batch_size = self.max_batch_size
         return None
     
@@ -145,6 +145,14 @@ class ipfs_embeddings_py:
                 batch_size = 2**exponent
             except:
                 embed_fail = True
+                if isinstance(embeddings, ValueError):
+                    fail_reason = embeddings.args[0]
+                    if fail_reason.status == 413:
+                        pass
+                    if fail_reason.status == 504:
+                        self.endpoint_status[endpoint] = 0
+                        endpoint = self.choose_endpoint(model)
+                        return await self.max_batch_size(model, endpoint)
                 pass
         self.endpoint_status[endpoint] = 2**(exponent-1)
         return 2**(exponent-1)
