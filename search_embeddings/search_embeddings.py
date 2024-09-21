@@ -52,7 +52,26 @@ class search_embeddings:
         os.system(kill_qdrant_cmd)
         return None
     
-    async def load_qdrant_new(self, dataset, knn_index):
+    async def join_datasets(self, dataset, knn_index, join_column):
+
+        return None
+    
+    async def load_qdrant_new(self, dataset, knn_index, dataset_split= None, knn_index_split=None):
+        if dataset_split is not None:
+            self.dataset = self.datasets.load_dataset(dataset, split=dataset_split, streaming=True)
+        else:
+            self.dataset = self.datasets.load_dataset(dataset, streaming=True)
+        if knn_index_split is not None:
+            self.knn_index = self.datasets.load_dataset(knn_index, split=knn_index_split, streaming=True)
+        else:
+            self.knn_index = self.datasets.load_dataset(knn_index, streaming=True)
+        self.dataset_name = dataset
+        self.knn_index_name = knn_index
+        knn_columns = self.knn_index.column_names[list(self.knn_index.column_names.keys())[0]]
+        dataset_columns = self.dataset.column_names[list(self.dataset.column_names.keys())[0]]
+        common_columns = set(dataset_columns).intersection(knn_columns)
+        self.join_column = common_columns
+        self.joined_dataset = self.join_datasets(self.dataset, self.knn_index, self.join_column)
         return None
 
     
