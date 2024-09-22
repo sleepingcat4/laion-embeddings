@@ -94,7 +94,8 @@ class search_embeddings:
             self.knn_index = self.datasets.load_dataset(knn_index, streaming=True)
             if "Embeddings" in self.knn_index.column_names:
                 self.knn_index = self.knn_index.rename_column("Embeddings", "embeddings")
-            self.knn_index_length = sum(1 for _ in self.knn_index)            
+            self.knn_index_length = sum(1 for _ in self.knn_index)
+                        
         self.dataset_name = dataset
         self.knn_index_name = knn_index
         knn_columns = self.knn_index.column_names
