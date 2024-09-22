@@ -43,8 +43,20 @@ class search_embeddings:
     def start_qdrant(self):
         docker_pull_cmd = "sudo docker pull qdrant/qdrant:latest"
         os.system(docker_pull_cmd)
-        start_qdrant_cmd = "sudo docker run -d -p 6333:6333 -v /storage/qdrant:/qdrant/data qdrant/qdrant:latest"
-        os.system(start_qdrant_cmd)
+        docker_ps = "sudo docker ps | grep qdrant/qdrant:latest"
+        try:
+            docker_ps_results = subprocess.check_output(docker_ps, shell=True).decode("utf-8")
+        except subprocess.CalledProcessError as e:
+            docker_ps_results = e
+            docker_stopped_ps = "sudo docker ps -a | grep qdrant/qdrant:latest"
+            try:
+                docker_stopped_ps_results  = subprocess.check_output(docker_stopped_ps, shell=True).decode("utf-8")
+                start_qdrant_cmd = "sudo docker start $(sudo docker ps -a -q --filter ancestor=qdrant/qdrant:latest --format={{.ID}})"
+                os.system(start_qdrant_cmd)
+            except subprocess.CalledProcessError as e:
+                docker_stopped_ps_results = e
+                start_qdrant_cmd = "sudo docker run -d -p 6333:6333 -v /storage/qdrant:/qdrant/data qdrant/qdrant:latest"
+                os.system(start_qdrant_cmd)
         return None
     
     def stop_qdrant(self):
@@ -56,7 +68,6 @@ class search_embeddings:
         async for dataset_item, knn_index_item in zip(dataset, knn_index):
             dataset_item[join_column] = knn_index_item[join_column]
             yield dataset_item
-        return None
     
     async def load_qdrant_new(self, dataset, knn_index, dataset_split= None, knn_index_split=None):
         if dataset_split is not None:
@@ -197,15 +208,16 @@ class search_embeddings:
         os.system("rm -rf " + cache_dir)
         return None
 
-    def generate_embeddings(self, query):
+    async def generate_embeddings(self, query, model=None):
+        if model is not None:
+            model = self.metadata["model"]
         if isinstance(query, str):
             query = [query]
         elif not isinstance(query, list):
             raise ValueError("Query must be a string or a list of strings")
-        
-        self.ipfs_embeddings_py.queue_index_knn(query)
+        self.ipfs_embeddings_py.index_knn(query, "")
         selected_endpoint = self.ipfs_embeddings_py.choose_endpoint(self.model)
-        embeddings = self.ipfs_embeddings_py.https_index_knn(selected_endpoint, self.model)
+        embeddings = await self.ipfs_embeddings_py.index_knn(selected_endpoint, self.model)
         return embeddings
     
     def search_embeddings(self, embeddings):
@@ -230,12 +242,27 @@ class search_embeddings:
                 }})       
         return results
     
-    def search(self, query, n=5):
+    async def search(self, query, n=5):
         if self.qdrant_found == True:
-            query_embeddings = self.generate_embeddings(query)
+            query_embeddings = await self.generate_embeddings(query)
             vector_search = self.search_qdrant(query_embeddings, self.dataset.split("/")[1], n)
         else:
             print("Qdrant failed to start")
             ## Fallback to faiss
             return None
         return vector_search
+    
+if __name__ == '__main__':
+    metadata = {
+        "dataset": "laion/Wikipedia-X-Concat",
+        "faiss_index": "laion/Wikipedia-M3",
+        "model": "BAAI/bge-m3"
+    }
+    resources = {
+        "https_endpoints": [["BAAI/bge-m3", "http://62.146.169.111:80/embed",8192]]
+    }
+    search_embeddings = search_embeddings(resources, metadata)
+    search_embeddings.start_qdrant()
+    search_embeddings.load_qdrant_new("laion/Wikipedia-X-Concat", "laion/Wikipedia-M3")
+    results = search_embeddings.search("Machine Learning")
+    print(results)
