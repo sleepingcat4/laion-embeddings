@@ -116,7 +116,7 @@ class search_embeddings:
                 break
             yield results
     
-    async def load_qdrant_new(self, dataset, knn_index, dataset_split= None, knn_index_split=None):
+    async def load_qdrant_iter(self, dataset, knn_index, dataset_split= None, knn_index_split=None):
         self.knn_index_hash = []
         self.datasets_hash = []
         if dataset_split is not None:
@@ -153,7 +153,7 @@ class search_embeddings:
         self.joined_dataset = self.join_datasets(self.dataset, self.knn_index, self.join_column)
         return None
 
-    async def ingest_qdrant_new(self, column_name):
+    async def ingest_qdrant_iter(self, column_name):
         embedding_size = 0
         self.knn_index_length = 99999
         collection_name = self.dataset_name.split("/")[1]
@@ -161,7 +161,7 @@ class search_embeddings:
         # Define the collection name
         collection_name = self.dataset_name.split("/")[1]
         if (client.collection_exists(collection_name)):
-            print(collection_name + "Collection already exists")
+            print(collection_name + " Collection already exists")
         else:
             print("Creating collection" + collection_name)        
             client.create_collection(
@@ -177,12 +177,12 @@ class search_embeddings:
         async for item in self.joined_dataset:
             processed_rows += 1
             points.append(models.PointStruct(
-                id=item["id"],
-                vector=item["embeddings"][0].tolist(),
-                payload={"text": item["Concat Abstract"]}
+                id=processed_rows,
+                vector=item["embeddings"][0],
+                payload={"text": item[column_name]}
             ))
             if len(points) == chunk_size:
-                print(f"Processing chunk {processed_rows-chunk_size}:{processed_rows}")
+                print(f"Processing chunk {processed_rows-chunk_size} to {processed_rows}")
                 client.upsert(
                     collection_name=collection_name,
                     points=points
@@ -312,10 +312,17 @@ class search_embeddings:
             return None
         return vector_search
 
-    async def test(self):
+    async def test_low_memory(self):
         start = self.start_qdrant()
-        load_qdrant = await self.load_qdrant_new("laion/Wikipedia-X-Concat", "laion/Wikipedia-M3", "enwiki_concat", "enwiki_embed")
-        ingest_qdrant = await self.ingest_qdrant_new("concat_abstract")
+        load_qdrant = await self.load_qdrant_iter("laion/Wikipedia-X-Concat", "laion/Wikipedia-M3", "enwiki_concat", "enwiki_embed")
+        ingest_qdrant = await self.ingest_qdrant_iter("Concat Abstract")
+        results = await search_embeddings.search("Machine Learning")
+        return None
+    
+    async def test_high_memory(self):
+        start = self.start_qdrant()
+        load_qdrant = await self.load_qdrant("laion/Wikipedia-X-Concat", "laion/Wikipedia-M3")
+        ingest_qdrant = await self.ingest_qdrant("Concat Abstract")
         results = await search_embeddings.search("Machine Learning")
         return None
     
@@ -329,5 +336,5 @@ if __name__ == '__main__':
         "https_endpoints": [["BAAI/bge-m3", "http://62.146.169.111:80/embed",8192]]
     }
     search_embeddings = search_embeddings(resources, metadata)
-    asyncio.run(search_embeddings.test())
+    asyncio.run(search_embeddings.test_low_memory())
     print()
