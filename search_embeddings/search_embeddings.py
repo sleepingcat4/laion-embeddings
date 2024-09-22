@@ -12,6 +12,7 @@ import os
 import sys
 import subprocess
 import asyncio
+import hashlib
 
 class search_embeddings:
     def __init__(self, resources, metadata):
@@ -66,11 +67,58 @@ class search_embeddings:
         return None
     
     async def join_datasets(self, dataset, knn_index, join_column):
-        async for dataset_item, knn_index_item in zip(dataset, knn_index):
-            dataset_item[join_column] = knn_index_item[join_column]
-            yield dataset_item
+        dataset_iter = iter(dataset)
+        knn_index_iter = iter(knn_index)
+        while True:
+            try:
+                dataset_item = next(dataset_iter)
+                knn_index_item = next(knn_index_iter)
+                results = {}
+                for key in dataset_item.keys():
+                    results[key] = dataset_item[key]
+                same = True
+                for column in join_column:
+                    if dataset_item[column] != knn_index_item[column]:
+                        same = False
+                        break
+                if same == True:
+                    for key in knn_index_item.keys():
+                        results[key] = knn_index_item[key]
+                else:
+                    if "knn_index_hash" in self.keys() and "datasets_hash" in self.keys() and len(self.knn_index_hash) > 0 and len(self.datasets_hash) > 0:
+                        this_hash_key = {}
+                        for columin in join_column:
+                            this_hash_key[column] = dataset_item[column]
+                        this_hash_value = hashlib.md5(json.dumps(this_hash_key).encode()).hexdigest()
+                        if this_hash_value in self.knn_index_hash:
+                            knn_index_item = self.knn_index_hash.index(this_hash_value)
+                            for key in knn_index_item[knn_index_item].keys():
+                                results[key] = knn_index_item[key]
+                    else:
+                        async for item in self.dataset:
+                            this_hash_key = {}
+                            for column in join_column:
+                                this_hash_key[column] = item[column]
+                            new_hash_value = hashlib.md5(json.dumps(this_hash_key).encode()).hexdigest()
+                            self.datasets_hash.append(new_hash_value)
+                        async for item in self.knn_index:
+                            this_hash_key = {}
+                            for column in join_column:
+                                this_hash_key[column] = item[column]
+                            new_hash_value = hashlib.md5(json.dumps(this_hash_key).encode()).hexdigest()
+                            self.knn_index_hash.append(new_hash_value)
+                        if this_hash_value in self.knn_index_hash and this_hash_value in self.datasets_hash:
+                            knn_index_item = self.knn_index_hash.index(this_hash_value)
+                            for key in knn_index_item[knn_index_item].keys():
+                                results[key] = knn_index_item[key]
+                yield results
+            except StopAsyncIteration:
+                break
+            yield results
     
     async def load_qdrant_new(self, dataset, knn_index, dataset_split= None, knn_index_split=None):
+        self.knn_index_hash = []
+        self.datasets_hash = []
         if dataset_split is not None:
             self.dataset = self.datasets.load_dataset(dataset, split=dataset_split, streaming=True)
         else:
@@ -84,7 +132,7 @@ class search_embeddings:
             self.knn_index = self.datasets.load_dataset(knn_index, split=knn_index_split, streaming=True)
             if "Embeddings" in self.knn_index.column_names:
                 self.knn_index = self.knn_index.rename_column("Embeddings", "embeddings")
-            self.knn_index_length = sum(1 for _ in self.knn_index)
+            # self.knn_index_length = sum(1 for _ in self.knn_index)
         else:
             self.knn_index = self.datasets.load_dataset(knn_index, streaming=True)
             if "Embeddings" in self.knn_index.column_names:
@@ -94,8 +142,8 @@ class search_embeddings:
             self.knn_index = self.datasets.load_dataset(knn_index, streaming=True)
             if "Embeddings" in self.knn_index.column_names:
                 self.knn_index = self.knn_index.rename_column("Embeddings", "embeddings")
-            self.knn_index_length = sum(1 for _ in self.knn_index)
-                        
+            # self.knn_index_length = sum(1 for _ in self.knn_index)
+
         self.dataset_name = dataset
         self.knn_index_name = knn_index
         knn_columns = self.knn_index.column_names
@@ -105,15 +153,15 @@ class search_embeddings:
         self.joined_dataset = self.join_datasets(self.dataset, self.knn_index, self.join_column)
         return None
 
-    async def ingest_qdrant_new(self):
+    async def ingest_qdrant_new(self, column_name):
         embedding_size = 0
+        self.knn_index_length = 99999
         collection_name = self.dataset_name.split("/")[1]
         client = QdrantClient(url="http://localhost:6333")
         # Define the collection name
         collection_name = self.dataset_name.split("/")[1]
         if (client.collection_exists(collection_name)):
             print(collection_name + "Collection already exists")
-            return False
         else:
             print("Creating collection" + collection_name)        
             client.create_collection(
@@ -124,25 +172,22 @@ class search_embeddings:
         # Chunk size for generating points
         chunk_size = 100
         # Prepare the points to be inserted in chunks
-
-        for start in range(0, knn_index_length, chunk_size):
-            end = min(start + chunk_size, knn_index_length)
-            chunk_df = self.joined_dataset.iloc[start:end]
-            points = []
-            print(f"Processing chunk {start}:{end}")
-            for index, row in chunk_df.iterrows():
-                text = row["Concat Abstract"]
-                embedding = row["Embeddings"][0]
-                points.append(models.PointStruct(
-                    id=index,
-                    vector=embedding.tolist() if embedding is not None else None,  # Convert embedding to list if not None
-                    payload={"text": text}
-                ))
-
-            client.upsert(
-                collection_name=collection_name,
-                points=points
-            )
+        processed_rows = 0
+        points = []
+        async for item in self.joined_dataset:
+            processed_rows += 1
+            points.append(models.PointStruct(
+                id=item["id"],
+                vector=item["embeddings"][0].tolist(),
+                payload={"text": item["Concat Abstract"]}
+            ))
+            if len(points) == chunk_size:
+                print(f"Processing chunk {processed_rows-chunk_size}:{processed_rows}")
+                client.upsert(
+                    collection_name=collection_name,
+                    points=points
+                )
+                points = []        
         
         print("Data successfully ingested into Qdrant")
         print("All data successfully ingested into Qdrant from huggingface dataset")
@@ -270,7 +315,7 @@ class search_embeddings:
     async def test(self):
         start = self.start_qdrant()
         load_qdrant = await self.load_qdrant_new("laion/Wikipedia-X-Concat", "laion/Wikipedia-M3", "enwiki_concat", "enwiki_embed")
-        ingest_qdrant = await self.ingest_qdrant_new()
+        ingest_qdrant = await self.ingest_qdrant_new("concat_abstract")
         results = await search_embeddings.search("Machine Learning")
         return None
     
