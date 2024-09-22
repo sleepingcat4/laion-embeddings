@@ -11,6 +11,7 @@ import numpy as np
 import os
 import sys
 import subprocess
+import asyncio
 
 class search_embeddings:
     def __init__(self, resources, metadata):
@@ -57,7 +58,7 @@ class search_embeddings:
                 docker_stopped_ps_results = e
                 start_qdrant_cmd = "sudo docker run -d -p 6333:6333 -v /storage/qdrant:/qdrant/data qdrant/qdrant:latest"
                 os.system(start_qdrant_cmd)
-        return None
+        return 1
     
     def stop_qdrant(self):
         kill_qdrant_cmd = "sudo docker stop $(sudo docker ps -a -q --filter ancestor=qdrant/qdrant:latest --format={{.ID}})"
@@ -76,38 +77,51 @@ class search_embeddings:
             self.dataset = self.datasets.load_dataset(dataset, streaming=True)
         if knn_index_split is not None:
             self.knn_index = self.datasets.load_dataset(knn_index, split=knn_index_split, streaming=True)
+            if "Embeddings" in self.knn_index.column_names:
+                self.knn_index = self.knn_index.rename_column("Embeddings", "embeddings")
+            single_row = next(iter(self.knn_index.take(1)))
+            self.embedding_size = len(single_row["embeddings"][0])
+            self.knn_index = self.datasets.load_dataset(knn_index, split=knn_index_split, streaming=True)
+            if "Embeddings" in self.knn_index.column_names:
+                self.knn_index = self.knn_index.rename_column("Embeddings", "embeddings")
+            self.knn_index_length = sum(1 for _ in self.knn_index)
         else:
             self.knn_index = self.datasets.load_dataset(knn_index, streaming=True)
+            if "Embeddings" in self.knn_index.column_names:
+                self.knn_index = self.knn_index.rename_column("Embeddings", "embeddings")
+            single_row = next(iter(self.knn_index.take(1)))
+            self.embedding_size = len(single_row["embeddings"][0])
+            self.knn_index = self.datasets.load_dataset(knn_index, streaming=True)
+            if "Embeddings" in self.knn_index.column_names:
+                self.knn_index = self.knn_index.rename_column("Embeddings", "embeddings")
+            self.knn_index_length = sum(1 for _ in self.knn_index)            
         self.dataset_name = dataset
         self.knn_index_name = knn_index
-        knn_columns = self.knn_index.column_names[list(self.knn_index.column_names.keys())[0]]
-        dataset_columns = self.dataset.column_names[list(self.dataset.column_names.keys())[0]]
-        common_columns = set(dataset_columns).intersection(knn_columns)
+        knn_columns = self.knn_index.column_names
+        dataset_columns = self.dataset.column_names
+        common_columns = set(dataset_columns).intersection(set(knn_columns))
         self.join_column = common_columns
         self.joined_dataset = self.join_datasets(self.dataset, self.knn_index, self.join_column)
         return None
 
     async def ingest_qdrant_new(self):
+        embedding_size = 0
         collection_name = self.dataset_name.split("/")[1]
-        embedding_size = len(self.knn_index[list(self.knn_index.keys())[0]].select([0])['Embeddings'][0][0])
         client = QdrantClient(url="http://localhost:6333")
         # Define the collection name
         collection_name = self.dataset_name.split("/")[1]
-        embedding_size = len(self.knn_index[list(self.knn_index.keys())[0]].select([0])['Embeddings'][0][0])
-
         if (client.collection_exists(collection_name)):
-            print("Collection already exists")
+            print(collection_name + "Collection already exists")
             return False
         else:
-            print("Creating collection")        
+            print("Creating collection" + collection_name)        
             client.create_collection(
                 collection_name=collection_name,
-                vectors_config=VectorParams(size=embedding_size, distance=Distance.COSINE),
+                vectors_config=VectorParams(size=self.embedding_size, distance=Distance.COSINE),
             )
 
         # Chunk size for generating points
         chunk_size = 100
-        knn_index_length = self.joined_dataset.shape[0]# Get the number of rows in the dataset
         # Prepare the points to be inserted in chunks
 
         for start in range(0, knn_index_length, chunk_size):
@@ -251,6 +265,13 @@ class search_embeddings:
             ## Fallback to faiss
             return None
         return vector_search
+
+    async def test(self):
+        start = self.start_qdrant()
+        load_qdrant = await self.load_qdrant_new("laion/Wikipedia-X-Concat", "laion/Wikipedia-M3", "enwiki_concat", "enwiki_embed")
+        ingest_qdrant = await self.ingest_qdrant_new()
+        results = await search_embeddings.search("Machine Learning")
+        return None
     
 if __name__ == '__main__':
     metadata = {
@@ -262,7 +283,5 @@ if __name__ == '__main__':
         "https_endpoints": [["BAAI/bge-m3", "http://62.146.169.111:80/embed",8192]]
     }
     search_embeddings = search_embeddings(resources, metadata)
-    search_embeddings.start_qdrant()
-    search_embeddings.load_qdrant_new("laion/Wikipedia-X-Concat", "laion/Wikipedia-M3")
-    results = search_embeddings.search("Machine Learning")
-    print(results)
+    asyncio.run(search_embeddings.test())
+    print()
