@@ -12,6 +12,7 @@ class LoadIndexRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     text: str
+    collection: str
 
 class CreateIndexRequest(BaseModel):
     resources: dict
