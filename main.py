@@ -11,8 +11,8 @@ class LoadIndexRequest(BaseModel):
     faiss_index: str
 
 class SearchRequest(BaseModel):
-    text: str
     collection: str
+    text: str
 
 class CreateIndexRequest(BaseModel):
     resources: dict
