@@ -73,7 +73,6 @@ async def search_item_task(collection: str, text: str):
 
 @app.post("/search")
 def search_item_post(request: SearchRequest, background_tasks: BackgroundTasks):
-    # search_results = background_tasks.add_task(search_item_task, request.collection, request.text)
     search_results = vector_search.search(request.collection, request.text)
     return search_results
 

@@ -318,7 +318,7 @@ class search_embeddings:
         return scores, samples 
     
     def search_qdrant(self, collection_name, query_vector,  n=5):
-        query_vector = np.array(query_vector[0][0])
+        query_vector = np.array(query_vector[0])
         client = QdrantClient(url="http://localhost:6333")
         search_result = client.search(
             collection_name=collection_name,
