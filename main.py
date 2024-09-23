@@ -70,6 +70,6 @@ def load_index_post(request: LoadIndexRequest, background_tasks: BackgroundTasks
 
 @app.post("/search")
 def search_item_post(request: SearchRequest):
-    return vector_search.search(request.text)
+    return vector_search.search(request.collection, request.text)
 
 uvicorn.run(app, host="0.0.0.0", port=9999)
