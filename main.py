@@ -27,11 +27,27 @@ resources = {
     "libp2p_endpoints": []
 }
 vector_search = search_embeddings.search_embeddings(resources, metadata)
+index_dataset = create_embeddings.create_embeddings(resources, metadata)
+
 app = FastAPI(port=9999)
 
-def create_index_task(resources: dict, metadata: dict):
-    index_dataset = create_embeddings.create_embeddings(resources, metadata)
-    index_dataset.main(metadata.dataset, metadata.coulmn, metadata.dst_path, metadata.models)
+
+async def create_index_task(request: LoadIndexRequest, background_tasks: BackgroundTasks):
+    dataset = request.dataset
+    knn_index = request.faiss_index
+    column = request.column
+    if "dataset_split" in request.keys():
+        dataset_split = request.dataset_split
+    else:
+        dataset_split = None
+    if "knn_index_split" in request.keys():
+        knn_index_split = request.knn_index_split
+    else:
+        knn_index_split = None
+
+    start_qdrant = index_dataset.start_qdrant()
+    load_qdrant = await index_dataset.load_qdrant_iter(dataset, knn_index, dataset_split, knn_index_split)
+    ingest_qdrant = await index_dataset.ingest_qdrant_iter(column)
     return None
 
 @app.post("/create")
