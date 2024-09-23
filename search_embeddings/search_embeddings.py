@@ -318,7 +318,7 @@ class search_embeddings:
         return scores, samples 
     
     def search_qdrant(self, collection_name, query_vector,  n=5):
-        query_vector = np.array(query_vector[0])
+        query_vector = np.array(query_vector[0][0])
         client = QdrantClient(url="http://localhost:6333")
         search_result = client.search(
             collection_name=collection_name,
@@ -333,9 +333,9 @@ class search_embeddings:
                 }})       
         return results
     
-    async def search(self, collection, query, n=5):
+    def search(self, collection, query, n=5):
         if self.qdrant_found == True:
-            query_embeddings = await self.ipfs_embeddings_py.index_knn(query, self.metadata["model"])
+            query_embeddings = self.ipfs_embeddings_py.index_knn(query, self.metadata["model"])
             vector_search = self.search_qdrant(collection, query_embeddings, n)
         else:
             print("Qdrant failed to start")

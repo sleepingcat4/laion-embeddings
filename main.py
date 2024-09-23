@@ -60,7 +60,6 @@ def create_index_post(request: CreateIndexRequest):
 
 async def load_index_task(dataset: str, faiss_index: str):
     vector_search = search_embeddings.search_embeddings(resources, metadata)
-
     await vector_search.load_qdrant(dataset, faiss_index)
     return None
 
@@ -69,8 +68,13 @@ def load_index_post(request: LoadIndexRequest, background_tasks: BackgroundTasks
     background_tasks.add_task(load_index_task, request.dataset, request.faiss_index)
     return {"message": "Index loading started in the background"}
 
+async def search_item_task(collection: str, text: str):
+    return await vector_search.search(collection, text)
+
 @app.post("/search")
-def search_item_post(request: SearchRequest):
-    return vector_search.search(request.collection, request.text)
+def search_item_post(request: SearchRequest, background_tasks: BackgroundTasks):
+    # search_results = background_tasks.add_task(search_item_task, request.collection, request.text)
+    search_results = vector_search.search(request.collection, request.text)
+    return search_results
 
 uvicorn.run(app, host="0.0.0.0", port=9999)

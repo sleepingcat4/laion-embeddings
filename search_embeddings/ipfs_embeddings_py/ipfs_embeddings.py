@@ -36,6 +36,7 @@ class ipfs_embeddings_py:
         self.save_to_disk = self.save_to_disk
         self.producer = self.producer
         self.consumer = self.consumer
+        self.index_knn = self.index_knn
         self.async_generator = self.async_generator
         self.add_https_endpoint = self.add_https_endpoint
         self.rm_https_endpoint = self.rm_https_endpoint
@@ -156,7 +157,7 @@ class ipfs_embeddings_py:
                 pass
         self.endpoint_status[endpoint] = 2**(exponent-1)
         return 2**(exponent-1)
-    
+            
     def index_knn(self, samples, model, chosen_endpoint=None):
         knn_stack = []
         if chosen_endpoint is None:
