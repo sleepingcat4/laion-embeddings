@@ -8,7 +8,10 @@ from pydantic import BaseModel
 
 class LoadIndexRequest(BaseModel):
     dataset: str
-    faiss_index: str
+    knn_index: str
+    dataset_split: Union[str, None]
+    knn_index_split: Union[str, None]
+    column: str
 
 class SearchRequest(BaseModel):
     collection: str
@@ -35,7 +38,7 @@ app = FastAPI(port=9999)
 
 async def create_index_task(request: LoadIndexRequest, background_tasks: BackgroundTasks):
     dataset = request.dataset
-    knn_index = request.faiss_index
+    knn_index = request.knn_index
     column = request.column
     if "dataset_split" in request.keys():
         dataset_split = request.dataset_split
@@ -58,14 +61,15 @@ def create_index_post(request: CreateIndexRequest):
     create_index_task(resources, metadata)
     return {"message": "Index creation started in the background"}
 
-async def load_index_task(dataset: str, faiss_index: str):
+async def load_index_task(dataset: str, knn_index: str, dataset_split: Union[str, None], knn_index_split: Union[str, None], column: str):
     vector_search = search_embeddings.search_embeddings(resources, metadata)
-    await vector_search.load_qdrant(dataset, faiss_index)
+    await vector_search.load_qdrant_iter(dataset, knn_index, dataset_split, knn_index_split)
+    await vector_search.ingest_qdrant_iter(column)
     return None
 
 @app.post("/load")
 def load_index_post(request: LoadIndexRequest, background_tasks: BackgroundTasks):
-    background_tasks.add_task(load_index_task, request.dataset, request.faiss_index)
+    background_tasks.add_task(load_index_task, request.dataset, request.knn_index, request.dataset_split, request.knn_index_split, request.column)
     return {"message": "Index loading started in the background"}
 
 async def search_item_task(collection: str, text: str):

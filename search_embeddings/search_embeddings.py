@@ -151,7 +151,7 @@ class search_embeddings:
         self.dataset_name = dataset
         self.knn_index_name = knn_index
         if dataset_split is not None:
-            self.dataset = self.datasets.load_dataset(dataset, split=dataset_split, streaming=True).shuffle(seed=random.randint(0,65536))
+            self.dataset = self.datasets.load_dataset(dataset, split=dataset_split, streaming=True)
             dataset_columns = self.dataset.column_names
         else:
             self.dataset = self.datasets.load_dataset(dataset, streaming=True)
