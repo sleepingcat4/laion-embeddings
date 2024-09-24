@@ -14,6 +14,14 @@ import subprocess
 import asyncio
 import hashlib
 import random
+from multiprocessing import Pool
+
+
+def hash_chunk(chunk):
+    this_hash_key = {}
+    for column in chunk:
+        this_hash_key[column] = chunk[column]
+    return hashlib.sha256(json.dumps(this_hash_key).encode()).hexdigest()
 
 class search_embeddings:
     def __init__(self, resources, metadata):
@@ -82,42 +90,50 @@ class search_embeddings:
                     if dataset_item[column] != knn_index_item[column]:
                         same = False
                         break
-                if same == True:
+                if same:
                     for key in knn_index_item.keys():
                         results[key] = knn_index_item[key]
                 else:
-                    if hasattr(self, 'knn_index_hash') and hasattr(self, 'datasets_hash') and len(self.knn_index_hash) > 0 and len(self.datasets_hash) > 0:
-                        this_hash_key = {}
-                        for columin in join_column:
-                            this_hash_key[column] = dataset_item[column]
-                        this_hash_value = hashlib.md5(json.dumps(this_hash_key).encode()).hexdigest()
-                        if this_hash_value in self.knn_index_hash:
-                            knn_index_item = self.knn_index_hash.index(this_hash_value)
-                            for key in knn_index_item[knn_index_item].keys():
-                                results[key] = knn_index_item[key]
+                    if not hasattr(self, 'knn_index_hash') or not hasattr(self, 'datasets_hash'):
+                        self.knn_index_hash = []
+                        self.datasets_hash = []
+                        cores = os.cpu_count()
+                        with Pool(processes=cores) as pool:
+                            chunk = []
+                            async for item in self.ipfs_embeddings_py.async_generator(self.dataset):
+                                chunk.append(item)
+                                if len(chunk) == cores:
+                                    self.datasets_hash.extend(pool.map(hash_chunk, chunk))
+                                    chunk = []
+                            if chunk:
+                                self.datasets_hash.extend(pool.map(hash_chunk, chunk))
+                            chunk = []
+                            async for item in self.ipfs_embeddings_py.async_generator(self.knn_index):
+                                chunk.append(item)
+                                if len(chunk) == cores:
+                                    self.knn_index_hash.extend(pool.map(hash_chunk, chunk))
+                                    chunk = []
+                            if chunk:
+                                self.knn_index_hash.extend(pool.map(hash_chunk, chunk))
+                    this_hash_key = {}
+                    for column in join_column:
+                        this_hash_key[column] = dataset_item[column]
+                    this_hash_value = hashlib.md5(json.dumps(this_hash_key).encode()).hexdigest()
+                    if this_hash_value in self.knn_index_hash and this_hash_value in self.datasets_hash:
+                        knn_index_item = self.knn_index_hash.index(this_hash_value)
+                        for key in self.knn_index[knn_index_item].keys():
+                            results[key] = self.knn_index[knn_index_item][key]
+                        dataset_item = self.datasets_hash.index(this_hash_value)
+                        for key in self.dataset[dataset_item].keys():
+                            results[key] = self.dataset[dataset_item][key]
                     else:
-                        async for item in self.ipfs_embeddings_py.async_generator(self.dataset):
-                        # async for item in self.dataset:
-                            this_hash_key = {}
-                            for column in join_column:
-                                this_hash_key[column] = item[column]
-                            new_hash_value = hashlib.md5(json.dumps(this_hash_key).encode()).hexdigest()
-                            self.datasets_hash.append(new_hash_value)
-                        async for item in self.ipfs_embeddings_py.async_generator(self.knn_index):
-                        # async for item in self.knn_index:
-                            this_hash_key = {}
-                            for column in join_column:
-                                this_hash_key[column] = item[column]
-                            new_hash_value = hashlib.md5(json.dumps(this_hash_key).encode()).hexdigest()
-                            self.knn_index_hash.append(new_hash_value)
-                        if this_hash_value in self.knn_index_hash and this_hash_value in self.datasets_hash:
-                            knn_index_item = self.knn_index_hash.index(this_hash_value)
-                            for key in knn_index_item[knn_index_item].keys():
-                                results[key] = knn_index_item[key]
+                        continue
                 yield results
+            except StopIteration:
+                break
             except StopAsyncIteration:
                 break
-            yield results
+        return None
     
     async def load_qdrant_iter(self, dataset, knn_index, dataset_split= None, knn_index_split=None):
         self.knn_index_hash = []
@@ -125,7 +141,7 @@ class search_embeddings:
         self.dataset_name = dataset
         self.knn_index_name = knn_index
         if dataset_split is not None:
-            self.dataset = self.datasets.load_dataset(dataset, split=dataset_split, streaming=True)
+            self.dataset = self.datasets.load_dataset(dataset, split=dataset_split, streaming=True).shuffle(seed=random.randint(0,65536))
             dataset_columns = self.dataset.column_names
         else:
             self.dataset = self.datasets.load_dataset(dataset, streaming=True)
