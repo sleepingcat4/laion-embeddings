@@ -385,7 +385,10 @@ class ipfs_embeddings_py:
             elif error.status == 504:
                 self.endpoint_status[endpoint] = 0
                 return await self.send_batch(batch, column, model_name)
-            raise Exception("error: " + error_content["error"])
+            elif error.status == 502:
+                self.endpoint_status[endpoint] = 0
+                return await self.send_batch(batch, column, model_name)
+            raise Exception(error)
         else:
             return results
 
