@@ -13,6 +13,9 @@ import os
 import sys
 import subprocess
 from transformers import AutoTokenizer
+from concurrent.futures import ProcessPoolExecutor
+import asyncio
+from multiprocessing import Pool
 
 class ipfs_embeddings_py:
     def __init__(self, resources, metedata):
@@ -326,21 +329,30 @@ class ipfs_embeddings_py:
             queue.task_done()
         return None
 
+
     async def producer(self, dataset_stream, column, queues):
-        async for item in self.async_generator(dataset_stream):
-            # Assuming `item` is a dictionary with required data
-            column_names = item.keys()
-            this_cid = self.index_cid(item[column])[0]
-            if "cid" not in column_names:
-                item["cid"] = self.index_cid(item[column])[0]
-            # Check if cid is in index
-            if this_cid in self.cid_list:
-                pass
-            else:
-                self.cid_list.add(this_cid)
-                self.new_dataset = self.new_dataset.add_item(item)    
-                for queue in queues.values():
-                    await queue.put(item)  # Non-blocking put
+        with ProcessPoolExecutor() as executor:
+            futures = []
+            async for item in self.async_generator(dataset_stream):
+                futures.append(executor.submit(self.process_item, item, column, queues))
+            for future in futures:
+                await asyncio.wrap_future(future)
+        return None
+
+    def process_item(self, item, column, queues):
+        # Assuming `item` is a dictionary with required data
+        column_names = item.keys()
+        this_cid = self.index_cid(item[column])[0]
+        if "cid" not in column_names:
+            item["cid"] = self.index_cid(item[column])[0]
+        # Check if cid is in index
+        if this_cid in self.cid_list:
+            pass
+        else:
+            self.cid_list.add(this_cid)
+            self.new_dataset = self.new_dataset.add_item(item)    
+            for queue in queues.values():
+                queue.put_nowait(item)  # Non-blocking put
         return None
 
     async def send_batch(self, batch, column, model_name):
