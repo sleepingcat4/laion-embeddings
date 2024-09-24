@@ -53,26 +53,37 @@ class search_embeddings:
 
     def start_qdrant(self):
         docker_pull_cmd = "sudo docker pull qdrant/qdrant:latest"
-        os.system(docker_pull_cmd)
-        docker_ps = "sudo docker ps | grep qdrant/qdrant:latest"
+        os.system(docker_pull_cmd + " > /dev/null 2>&1")
+        docker_port_ls = "sudo docker ps | grep 6333"
+        docker_port_ls_results = os.system(docker_port_ls + " > /dev/null 2>&1")
+        docker_image_ls = "sudo docker images | grep qdrant/qdrant | grep latest | awk '{print $3}'"
+        docker_image_ls_results = subprocess.check_output(docker_image_ls, shell=True).decode("utf-8").strip()
+        docker_ps = "sudo docker ps | grep " + docker_image_ls_results
         try:
             docker_ps_results = subprocess.check_output(docker_ps, shell=True).decode("utf-8")
         except subprocess.CalledProcessError as e:
             docker_ps_results = e
-            docker_stopped_ps = "sudo docker ps -a | grep qdrant/qdrant:latest"
+            if docker_port_ls_results == 0:
+                stop_qdrant_cmd = self.stop_qdrant()
+            docker_stopped_ps = "sudo docker ps -a | grep " + docker_image_ls_results
             try:
-                docker_stopped_ps_results  = subprocess.check_output(docker_stopped_ps, shell=True).decode("utf-8")
+                docker_stopped_ps_results = subprocess.check_output(docker_stopped_ps, shell=True).decode("utf-8")
                 start_qdrant_cmd = "sudo docker start $(sudo docker ps -a -q --filter ancestor=qdrant/qdrant:latest --format={{.ID}})"
-                os.system(start_qdrant_cmd)
+                os.system(start_qdrant_cmd + " > /dev/null 2>&1")
             except subprocess.CalledProcessError as e:
                 docker_stopped_ps_results = e
                 start_qdrant_cmd = "sudo docker run -d -p 6333:6333 -v /storage/qdrant:/qdrant/data qdrant/qdrant:latest"
-                os.system(start_qdrant_cmd)
+                os.system(start_qdrant_cmd + " > /dev/null 2>&1")
         return 1
     
     def stop_qdrant(self):
-        kill_qdrant_cmd = "sudo docker stop $(sudo docker ps -a -q --filter ancestor=qdrant/qdrant:latest --format={{.ID}})"
-        os.system(kill_qdrant_cmd)
+        qdrant_port_ls = "sudo docker ps | grep 6333"
+        qdrant_port_ls_results = os.system(qdrant_port_ls + " > /dev/null 2>&1")
+        if qdrant_port_ls_results == 0:
+            docker_ps = "sudo docker ps | grep 6333 | awk '{print $1}'"
+            docker_ps_results = subprocess.check_output(docker_ps, shell=True).decode("utf-8").strip()  
+            stop_qdrant_cmd = "sudo docker stop " + docker_ps_results
+            os.system(stop_qdrant_cmd + " > /dev/null 2>&1")
         return None
     
     async def join_datasets(self, dataset, knn_index, join_column):
@@ -94,11 +105,11 @@ class search_embeddings:
                     for key in knn_index_item.keys():
                         results[key] = knn_index_item[key]
                 else:
-                    if not hasattr(self, 'knn_index_hash') or not hasattr(self, 'datasets_hash'):
-                        self.knn_index_hash = []
-                        self.datasets_hash = []
-                        cores = os.cpu_count()
+                    if not hasattr(self, 'knn_index_hash') or not hasattr(self, 'datasets_hash') or len(self.knn_index_hash) == 0 or len(self.datasets_hash) == 0:
+                        cores = os.cpu_count() or 1
                         with Pool(processes=cores) as pool:
+                            self.knn_index_hash = []
+                            self.datasets_hash = []
                             chunk = []
                             async for item in self.ipfs_embeddings_py.async_generator(self.dataset):
                                 chunk.append(item)
@@ -133,7 +144,6 @@ class search_embeddings:
                 break
             except StopAsyncIteration:
                 break
-        return None
     
     async def load_qdrant_iter(self, dataset, knn_index, dataset_split= None, knn_index_split=None):
         self.knn_index_hash = []
