@@ -13,6 +13,9 @@ import os
 import sys
 import subprocess
 from transformers import AutoTokenizer
+from concurrent.futures import ProcessPoolExecutor
+import asyncio
+from multiprocessing import Pool
 
 class ipfs_embeddings_py:
     def __init__(self, resources, metedata):
@@ -36,7 +39,6 @@ class ipfs_embeddings_py:
         self.save_to_disk = self.save_to_disk
         self.producer = self.producer
         self.consumer = self.consumer
-        self.index_knn = self.index_knn
         self.async_generator = self.async_generator
         self.add_https_endpoint = self.add_https_endpoint
         self.rm_https_endpoint = self.rm_https_endpoint
@@ -157,7 +159,7 @@ class ipfs_embeddings_py:
                 pass
         self.endpoint_status[endpoint] = 2**(exponent-1)
         return 2**(exponent-1)
-            
+    
     def index_knn(self, samples, model, chosen_endpoint=None):
         knn_stack = []
         if chosen_endpoint is None:
@@ -314,34 +316,49 @@ class ipfs_embeddings_py:
         batch = []
         if model_name not in self.index.keys():
             self.index[model_name] = datasets.Dataset.from_dict({"cid": [], "embedding": []})
-        while True:
-            item = await queue.get()  # Wait for item
-            batch.append(item)
-            if len(batch) >= batch_size:
-                # Process batch
-                results = await self.send_batch(batch, column, model_name)
-                for i in range(len(results)):
-                    self.index[model_name] = self.index[model_name].add_item({"cid": batch[i]["cid"], "embedding": results[i]})
-                batch = []  # Clear batch after sending
-                self.saved = False
-            queue.task_done()
-        return None
+        
+        def process_batch(batch):
+            loop = asyncio.get_event_loop()
+            results = loop.run_until_complete(self.send_batch(batch, column, model_name))
+            return results
+        cores = os.cpu_count() or 1
+        with Pool(processes=cores) as pool:
+            while True:
+                item = await queue.get()  # Wait for item
+                batch.append(item)
+                if len(batch) >= batch_size:
+                    # Process batch
+                    results = await asyncio.get_event_loop().run_in_executor(None, process_batch, batch)
+                    for i in range(len(results)):
+                        self.index[model_name] = self.index[model_name].add_item({"cid": batch[i]["cid"], "embedding": results[i]})
+                    batch = []  # Clear batch after sending
+                    self.saved = False
+                queue.task_done()
+
 
     async def producer(self, dataset_stream, column, queues):
-        async for item in self.async_generator(dataset_stream):
-            # Assuming `item` is a dictionary with required data
-            column_names = item.keys()
-            this_cid = self.index_cid(item[column])[0]
-            if "cid" not in column_names:
-                item["cid"] = self.index_cid(item[column])[0]
-            # Check if cid is in index
-            if this_cid in self.cid_list:
-                pass
-            else:
-                self.cid_list.add(this_cid)
-                self.new_dataset = self.new_dataset.add_item(item)    
-                for queue in queues.values():
-                    await queue.put(item)  # Non-blocking put
+        with ProcessPoolExecutor() as executor:
+            futures = []
+            async for item in self.async_generator(dataset_stream):
+                futures.append(executor.submit(self.process_item, item, column, queues))
+            for future in futures:
+                await asyncio.wrap_future(future)
+        return None
+
+    def process_item(self, item, column, queues):
+        # Assuming `item` is a dictionary with required data
+        column_names = item.keys()
+        this_cid = self.index_cid(item[column])[0]
+        if "cid" not in column_names:
+            item["cid"] = self.index_cid(item[column])[0]
+        # Check if cid is in index
+        if this_cid in self.cid_list:
+            pass
+        else:
+            self.cid_list.add(this_cid)
+            self.new_dataset = self.new_dataset.add_item(item)    
+            for queue in queues.values():
+                queue.put_nowait(item)  # Non-blocking put
         return None
 
     async def send_batch(self, batch, column, model_name):
@@ -386,7 +403,10 @@ class ipfs_embeddings_py:
             elif error.status == 504:
                 self.endpoint_status[endpoint] = 0
                 return await self.send_batch(batch, column, model_name)
-            raise Exception("error: " + error_content["error"])
+            elif error.status == 502:
+                self.endpoint_status[endpoint] = 0
+                return await self.send_batch(batch, column, model_name)
+            raise Exception(error)
         else:
             return results
 
